@@ -144,6 +144,11 @@ def generate_action_code(action):
         code_lines.append(f'    # Mouse click at ({action["x"]}, {action["y"]})')
         code_lines.append(f'    mouse.position = ({action["x"]}, {action["y"]})')
         code_lines.append(f'    mouse.click(Button.{action["button"].lower()})')
+    elif action['type'] == 'type_text':
+        # Handle text typing - escape quotes and special characters
+        text = action['text'].replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\t', '\\t')
+        code_lines.append(f'    # Type text: {text[:50]}{"..." if len(text) > 50 else ""}')
+        code_lines.append(f'    keyboard.type("{text}")')
     elif action['type'] == 'key_press':
         key_combo = action['key']
         code_lines.append(f'    # Key combination: {key_combo}')

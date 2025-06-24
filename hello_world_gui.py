@@ -40,6 +40,12 @@ class SequenceRecorder:
         self.modifier_keys = {Key.ctrl_l, Key.ctrl_r, Key.alt_l, Key.alt_r, Key.shift, Key.shift_l, Key.shift_r, Key.cmd, Key.cmd_l, Key.cmd_r}
         self.screen_info = None  # Store screen resolution and DPI info
         
+        # Text typing detection
+        self.typing_buffer = ""  # Buffer to collect typed text
+        self.typing_start_time = None  # When typing sequence started
+        self.last_key_time = None  # Time of last keystroke
+        self.typing_threshold = 0.5  # Max seconds between keystrokes to consider as typing
+        
     def get_screen_info(self):
         """Get current screen resolution and DPI information"""
         screen_info = {}
@@ -81,6 +87,21 @@ class SequenceRecorder:
         screen_info['platform'] = platform.system()
         return screen_info
     
+    def flush_typing_buffer(self):
+        """Flush the typing buffer as a single text action"""
+        if self.typing_buffer and self.typing_start_time is not None:
+            action = {
+                'type': 'type_text',
+                'text': self.typing_buffer,
+                'time': round(self.typing_start_time - self.start_time, 2)
+            }
+            self.actions.append(action)
+            
+        # Reset typing state
+        self.typing_buffer = ""
+        self.typing_start_time = None
+        self.last_key_time = None
+    
     def start_recording(self):
         """Start recording mouse and keyboard actions"""
         self.recording = True
@@ -106,6 +127,7 @@ class SequenceRecorder:
     def stop_recording(self):
         """Stop recording actions"""
         self.recording = False
+        self.flush_typing_buffer()  # Flush any remaining text
         if self.mouse_listener:
             self.mouse_listener.stop()
         if self.keyboard_listener:
@@ -117,6 +139,9 @@ class SequenceRecorder:
             return
             
         if pressed:  # Only record on press, not release
+            # Mouse click interrupts typing sequence
+            self.flush_typing_buffer()
+            
             current_time = time.time()
             time_interval = round(current_time - self.start_time, 2)
             
@@ -137,13 +162,14 @@ class SequenceRecorder:
             
         # Check for ESC key to stop recording
         if key == Key.esc:
+            self.flush_typing_buffer()  # Flush any pending text
             self.stop_recording()
             return False  # Stop listener
         
         # Add key to pressed keys set
         self.pressed_keys.add(key)
         
-        # Only record action for non-modifier keys or when no modifiers are active
+        # Only record action for non-modifier keys
         if key not in self.modifier_keys:
             current_time = time.time()
             time_interval = round(current_time - self.start_time, 2)
@@ -159,16 +185,54 @@ class SequenceRecorder:
             if any(mod in self.pressed_keys for mod in [Key.cmd, Key.cmd_l, Key.cmd_r]):
                 active_modifiers.append('cmd')
             
-            # Format key name with modifiers
-            key_name = self.format_key_combination(key, active_modifiers)
+            # Check if this is a regular character that can be typed (no modifiers except shift)
+            is_typeable_char = False
+            try:
+                char = key.char
+                if char and char.isprintable() and not active_modifiers:
+                    is_typeable_char = True
+                elif char and char.isprintable() and active_modifiers == ['shift']:
+                    # Shift+character is still just typing (uppercase/symbols)
+                    is_typeable_char = True
+            except AttributeError:
+                # Not a character key
+                pass
             
-            action = {
-                'type': 'key_press',
-                'key': key_name,
-                'modifiers': active_modifiers,
-                'time': time_interval
-            }
-            self.actions.append(action)
+            if is_typeable_char:
+                # This is a typeable character - add to typing buffer
+                try:
+                    char = key.char
+                    
+                    # Check if we should start a new typing sequence or continue existing one
+                    if (self.last_key_time is None or 
+                        current_time - self.last_key_time > self.typing_threshold):
+                        # Start new typing sequence
+                        self.flush_typing_buffer()  # Flush any previous buffer
+                        self.typing_buffer = char
+                        self.typing_start_time = current_time
+                    else:
+                        # Continue existing typing sequence
+                        self.typing_buffer += char
+                    
+                    self.last_key_time = current_time
+                    
+                except AttributeError:
+                    # Shouldn't happen since we checked for char above, but just in case
+                    pass
+            else:
+                # This is a special key or key combination - flush typing buffer and record as separate action
+                self.flush_typing_buffer()
+                
+                # Format key name with modifiers
+                key_name = self.format_key_combination(key, active_modifiers)
+                
+                action = {
+                    'type': 'key_press',
+                    'key': key_name,
+                    'modifiers': active_modifiers,
+                    'time': time_interval
+                }
+                self.actions.append(action)
     
     def on_key_release(self, key):
         """Handle keyboard release events"""
