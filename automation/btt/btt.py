@@ -5,14 +5,14 @@ import sys
 import os
 import time
 
-from automation.btt.helpers import select_countries
-from utils.image_scanner import scan_for_image
-
+# Add parent directory to path first
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils import (
     ManualAutomationHelper, NavigationParser, play_sequence, play_sequence_async
 )
+from utils.image_scanner import scan_for_image
+from helpers import select_countries
 
 
 class BrandTestToolAutomation:
