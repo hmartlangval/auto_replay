@@ -270,13 +270,15 @@ class BrandTestToolAutomation:
         print("🎉 All automation steps completed successfully!")
         return True
     
-    def send_tabs(automation_helper, count, followed_by_space=False, followed_by_enter=False):
+    def send_tabs(self, automation_helper, count, followed_by_space=False, followed_by_enter=False):
         for _ in range(count):
             time.sleep(0.5)
             automation_helper.keys("{tab}")
+            
         if followed_by_space:
             time.sleep(0.5)
             automation_helper.keys("{space}")
+            
         if followed_by_enter:
             time.sleep(0.5)
             automation_helper.keys("{enter}")
