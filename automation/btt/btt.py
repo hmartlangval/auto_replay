@@ -118,6 +118,29 @@ class BrandTestToolAutomation:
         # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
         # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
         edit_emvco_l3_test_session_window.setup_window(bbox=(71, 65, 1270, 707))
+        
+        
+        # Lets scan for image for starting button
+        start_button_location = scan_for_image("start-tse-test-session.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        if start_button_location:
+            edit_emvco_l3_test_session_window.click(start_button_location)
+            time.sleep(0.5)
+        else:
+            print("❌ No start button found")
+            return False
+        
+        # this adds a new button into the UI, we need to click on it
+        # we scan for the new button image
+        edit_button_location = scan_for_image("edit-tse-test-session.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        if edit_button_location:
+            edit_emvco_l3_test_session_window.click(edit_button_location)
+            time.sleep(2)
+        else:
+            print("❌ No edit button found")
+            return False
+        
+        # What we should see now is a tabbed UI and first tab is highlighted
+        # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
         edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
         if edit_answers_location:
             edit_emvco_l3_test_session_window.click(edit_answers_location)
