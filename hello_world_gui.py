@@ -11,6 +11,7 @@ from utils.code_generator import (
     generate_file_header, generate_imports, generate_screen_detection_function,
     generate_validation_function, generate_replay_function, generate_main_section
 )
+from utils.common import show_modal_input_dialog, show_result_dialog
 from utils.file_utils import generate_unique_filename, generate_suggested_name, ensure_sequences_directory
 from utils.image_scanner import scan_image_with_bbox, create_advanced_scan_dialog
 from utils.windows_automation import ManualAutomationHelper
@@ -23,6 +24,7 @@ APP_TITLE = os.getenv("APP_TITLE")
 # Global variables
 automation_helper = None
 root = None
+shutdown_in_progress = False
 
 try:
     from pynput import mouse, keyboard
@@ -380,6 +382,7 @@ def initialize_automation_helper():
 def _setup_automation_helper():
     """Helper function to set up automation after window is ready"""
     global automation_helper
+        
     try:
         automation_helper = ManualAutomationHelper(target_window_title=APP_TITLE)
         print(f"✅ Automation helper initialized for: '{APP_TITLE}'")
@@ -461,6 +464,60 @@ def scan_image_advanced():
     
     # Use the utility function from image_scanner
     create_advanced_scan_dialog(root, automation_helper)
+
+def search_window():
+    """Search for windows by title using modal input dialog"""
+    if not PYWIN32_AVAILABLE:
+        messagebox.showerror("Error", "pywin32 is required for Windows automation.\n\nPlease install it using:\npip install pywin32")
+        return
+    
+    # Get search term from user using modal dialog
+    search_term = show_modal_input_dialog(
+        root,
+        title="Search Windows",
+        prompt="Enter window title to search for:\n(Will find windows that START WITH this text)",
+        initial_value=""
+    )
+    
+    if not search_term:
+        return  # User cancelled
+    
+    try:
+        # Import the search function from windows_automation
+        from utils.windows_automation import find_windows_by_title_starts_with
+        
+        # Search for windows
+        matching_windows = find_windows_by_title_starts_with(search_term)
+        
+        if matching_windows:
+            # Format results
+            message = f"🔍 Found {len(matching_windows)} window(s) starting with '{search_term}':\n\n"
+            
+            for i, (hwnd, title) in enumerate(matching_windows, 1):
+                # Get additional window info
+                from utils.windows_automation import get_window_info
+                window_info = get_window_info(hwnd)
+                
+                message += f"{i}. Title: {title}\n"
+                message += f"   Handle: {hwnd}\n"
+                
+                if window_info:
+                    message += f"   Position: ({window_info['left']}, {window_info['top']})\n"
+                    message += f"   Size: {window_info['width']}x{window_info['height']}\n"
+                    message += f"   Visible: {window_info['is_visible']}\n"
+                    message += f"   Minimized: {window_info['is_minimized']}\n"
+                    message += f"   Maximized: {window_info['is_maximized']}\n"
+                
+                message += "\n"
+                show_result_dialog(root, message)           
+        else:
+            messagebox.showinfo(
+                "Search Results", 
+                f"No windows found starting with '{search_term}'"
+            )
+    
+    except Exception as e:
+        messagebox.showerror("Error", f"Error searching for windows:\n\n{str(e)}")
 
 def test_automation():
     """Test the automation helper functionality"""
@@ -555,9 +612,14 @@ def get_suggested_sequence_name():
     """Get a unique suggested name for the sequence using utility"""
     return generate_suggested_name()
 
-def graceful_shutdown():
-    """Gracefully shutdown the application, cleaning up all resources"""
+
+def on_closing():
+    """Handle window closing - called by both X button and Ctrl+C"""
     global automation_helper, recorder, root
+    
+    # Prevent double-destroy
+    if not root or not root.winfo_exists():
+        return
     
     print("\n🛑 Graceful shutdown initiated...")
     
@@ -570,32 +632,40 @@ def graceful_shutdown():
         # Clean up automation helper
         if automation_helper:
             print("   • Cleaning up automation helper...")
-            # Add any cleanup methods if needed
             automation_helper = None
-        
-        # Clean up GUI
-        if root:
-            print("   • Closing GUI...")
-            root.quit()
-            root.destroy()
         
         print("✅ Graceful shutdown completed successfully!")
         
     except Exception as e:
         print(f"⚠️  Warning during shutdown: {e}")
     
-    finally:
-        # Force exit if needed
-        sys.exit(0)
+    # Let tkinter handle the rest - it knows how to clean up properly
+    try:
+        root.destroy()
+    except tk.TclError:
+        # Already destroyed, that's fine
+        pass
 
 def signal_handler(signum, frame):
-    """Handle Ctrl+C and other signals gracefully"""
-    global root
+    """Handle Ctrl+C and other signals - immediate shutdown"""
+    global shutdown_in_progress
     
-    print(f"\n🔄 Received signal {signum}, initiating graceful shutdown...")
+    # Prevent multiple shutdown attempts
+    if shutdown_in_progress:
+        return
+        
+    shutdown_in_progress = True
+    print(f"\n🔄 Received signal {signum}, shutting down immediately...")
     
-    # Directly call graceful shutdown - more efficient than scheduling
-    graceful_shutdown()
+    # Stop any active recording
+    try:
+        if 'recorder' in globals() and recorder and recorder.recording:
+            recorder.stop_recording()
+    except:
+        pass
+    
+    print("🛑 Shutdown complete!")
+    os._exit(0)  # Force immediate exit
 
 def finish_recording():
     """Finish recording and save sequence"""
@@ -742,6 +812,16 @@ def main():
     )
     test_automation_button.pack(side=tk.LEFT, padx=2)
     
+    search_window_button = tk.Button(
+        buttons_frame,
+        text="Search Window",
+        command=search_window,
+        bg="#9B59B6",
+        width=13,
+        **button_style
+    )
+    search_window_button.pack(side=tk.LEFT, padx=2)
+    
     # Right section: Status and Exit
     right_frame = tk.Frame(main_frame, bg='#2C3E50')
     right_frame.pack(side=tk.RIGHT, padx=10, pady=5)
@@ -763,7 +843,7 @@ def main():
     exit_button = tk.Button(
         right_frame,
         text="✕",
-        command=graceful_shutdown,
+        command=on_closing,
         font=("Arial", 12, "bold"),
         bg="#E74C3C",
         fg="white",
@@ -787,6 +867,7 @@ def main():
         (advanced_scan_button, "#8E44AD", "#9B59B6"),
         (record_button, "#E67E22", "#F39C12"),
         (test_automation_button, "#3498DB", "#5DADE2"),
+        (search_window_button, "#9B59B6", "#AF7AC5"),
         (exit_button, "#E74C3C", "#EC7063")
     ]
     
@@ -795,33 +876,27 @@ def main():
         button.bind("<Leave>", lambda e, b=button, o=original: on_leave(e, b, o))
     
     # Set up window close protocol (even though we removed title bar)
-    root.protocol("WM_DELETE_WINDOW", graceful_shutdown)
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     
     # Make window focusable for keyboard events
     root.focus_set()
     
     # Bind Ctrl+C directly to the window as backup
-    root.bind('<Control-c>', lambda e: graceful_shutdown())
+    root.bind('<Control-c>', lambda e: on_closing())
     
     print("✅ Taskbar ready! All systems operational.")
     
-    # Start the GUI event loop with proper signal handling
+    # Custom mainloop for responsive Ctrl+C (but keep it simple)
     try:
-        # Use a custom mainloop that's more responsive to signals
         while True:
-            try:
-                root.update()
-                root.update_idletasks()
-                time.sleep(0.01)  # Small sleep to prevent 100% CPU usage
-            except tk.TclError:
-                # Window was destroyed
-                break
+            root.update()
+            time.sleep(0.05)  # 50ms - good balance between responsiveness and CPU usage
+    except tk.TclError:
+        # Window was closed normally
+        pass
     except KeyboardInterrupt:
-        print("\n🔄 Keyboard interrupt detected...")
-        graceful_shutdown()
-    except Exception as e:
-        print(f"\n❌ Unexpected error in main loop: {e}")
-        graceful_shutdown()
+        # Ctrl+C pressed
+        on_closing()
 
 if __name__ == "__main__":
     main() 

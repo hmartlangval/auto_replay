@@ -49,6 +49,27 @@ def find_windows_by_title(partial_title: str) -> List[Tuple[int, str]]:
     return matching_windows
 
 
+def find_windows_by_title_starts_with(prefix: str) -> List[Tuple[int, str]]:
+    """
+    Find windows whose title starts with the specified text.
+    This handles both main parent windows and Win32 modal dialogs.
+    
+    Args:
+        prefix: Text that window title should start with (case-insensitive)
+        
+    Returns:
+        List[Tuple[int, str]]: List of matching (window_handle, target_window_title) tuples
+    """
+    all_windows = list_all_windows()
+    matching_windows = []
+    
+    for hwnd, title in all_windows:
+        if title.lower().startswith(prefix.lower()):
+            matching_windows.append((hwnd, title))
+    
+    return matching_windows
+
+
 def get_window_info(hwnd: int) -> Optional[dict]:
     """
     Get detailed information about a window.
