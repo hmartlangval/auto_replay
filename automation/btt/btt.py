@@ -109,9 +109,9 @@ class BrandTestToolAutomation:
         
         
         # Lets scan for image for starting button
-        start_button_location = scan_for_image("start-tse-test-session.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        start_button_location = scan_for_image("start-tse-test-session.png", project_setup_window_handle.get_bbox(), threshold=0.8)
         if start_button_location:
-            edit_emvco_l3_test_session_window.click(start_button_location)
+            project_setup_window_handle.click(start_button_location)
             time.sleep(0.5)
         else:
             print("❌ No start button found")
@@ -119,9 +119,9 @@ class BrandTestToolAutomation:
         
         # this adds a edit button into the UI, we need to click on it
         # we scan for the edit button image
-        edit_button_location = scan_for_image("edit-tse-test-session.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        edit_button_location = scan_for_image("edit-tse-test-session.png", project_setup_window_handle.get_bbox(), threshold=0.8)
         if edit_button_location:
-            edit_emvco_l3_test_session_window.click(edit_button_location)
+            project_setup_window_handle.click(edit_button_location)
             time.sleep(2)
         else:
             print("❌ No edit button found")
@@ -146,6 +146,7 @@ class BrandTestToolAutomation:
         edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
         if edit_answers_location:
             edit_emvco_l3_test_session_window.click(edit_answers_location)
+            time.sleep(2)
         else:
             print("❌ No edit answers button found")
             return False
