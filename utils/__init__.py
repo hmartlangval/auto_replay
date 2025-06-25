@@ -9,3 +9,7 @@ from .windows_automation import (
 )
 from .navigation_parser import NavigationParser
 from .common import show_modal_input_dialog, show_result_dialog
+from .sequence_player import (
+    SequencePlayer, play_sequence, play_sequence_async, play_sequence_with_delay,
+    list_available_sequences, sequence_exists
+)

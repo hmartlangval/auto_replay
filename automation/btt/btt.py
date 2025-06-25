@@ -8,7 +8,7 @@ import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils import (
-    ManualAutomationHelper, NavigationParser
+    ManualAutomationHelper, NavigationParser, play_sequence, play_sequence_async
 )
 
 
@@ -64,9 +64,22 @@ class BrandTestToolAutomation:
         if not self.window_handle:
             return False
      
-        # Send navigation keys
-        if not self.send_navigation_keys(navigation_path="{Alt+C} -> {Down 1} -> {Enter}"):
+        # Send navigation keys to create project
+        if not self.send_navigation_keys(navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
             return False
+        
+        time.sleep(0.5)
+        
+        # Run sequence to fill in project name and description
+        print("🎬 Running sequence to fill project details...")
+        success = play_sequence("fill_project_details", blocking=True)
+        if not success:
+            print("❌ Failed to run sequence")
+            return False
+        
+        # # Send navigation keys
+        # if not self.send_navigation_keys(navigation_path="{Alt+C} -> {Down 1} -> {Enter}"):
+        #     return False
         
         time.sleep(1)
         
