@@ -3,6 +3,7 @@
 
 import sys
 import os
+import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils import (
@@ -86,15 +87,16 @@ class BrandTestToolAutomation:
             
             print(f"📝 Parsed {len(steps)} navigation steps")
             
-            # Note: NavigationParser.execute_step expects a WebDriver instance
-            # For Windows automation, we would need to adapt this or use a different approach
-            # For now, let's show what would be executed
-            
+            # Execute each step using Windows API
             for i, step in enumerate(steps, 1):
-                print(f"  Step {i}: {step['description']}")
+                print(f"  Step {i}/{len(steps)}: {step['description']}")
+                success = NavigationParser.execute_step_windows(step, self.automation_helper)
+                if not success:
+                    print(f"❌ Failed to execute step {i}")
+                    return False
+                time.sleep(0.2)  # Small delay between steps
             
-            print("⚠️ Note: Navigation execution requires WebDriver integration")
-            print("✅ Navigation steps parsed successfully")
+            print("✅ All navigation steps executed successfully!")
             return True
             
         except Exception as e:

@@ -229,3 +229,82 @@ class NavigationParser:
             print(f"  ❌ Step execution failed: {e}")
             return False
 
+    @staticmethod
+    def execute_step_windows(step, automation_helper):
+        """Execute a parsed navigation step using Windows API.
+        
+        Args:
+            step: Step dictionary from parse_navigation_path
+            automation_helper: ManualAutomationHelper instance
+            
+        Returns:
+            bool: Success/failure
+        """
+        import time  # Ensure time is available
+        try:
+            print(f"  🎯 Executing: {step['description']}")
+            
+            if step['type'] == 'key_single':
+                # Single key press using Windows API
+                key_name = step['key'].lower()
+                
+                # Map common keys to their Windows virtual key codes
+                key_map = {
+                    'enter': 0x0D,      # VK_RETURN
+                    'escape': 0x1B,     # VK_ESCAPE
+                    'tab': 0x09,        # VK_TAB
+                    'space': 0x20,      # VK_SPACE
+                    'backspace': 0x08,  # VK_BACK
+                    'delete': 0x2E,     # VK_DELETE
+                    'home': 0x24,       # VK_HOME
+                    'end': 0x23,        # VK_END
+                    'pageup': 0x21,     # VK_PRIOR
+                    'pagedown': 0x22,   # VK_NEXT
+                    'up': 0x26,         # VK_UP
+                    'down': 0x28,       # VK_DOWN
+                    'left': 0x25,       # VK_LEFT
+                    'right': 0x27,      # VK_RIGHT
+                    'f1': 0x70, 'f2': 0x71, 'f3': 0x72, 'f4': 0x73,
+                    'f5': 0x74, 'f6': 0x75, 'f7': 0x76, 'f8': 0x77,
+                    'f9': 0x78, 'f10': 0x79, 'f11': 0x7A, 'f12': 0x7B
+                }
+                
+                # Use automation helper's existing key functionality
+                if key_name in key_map:
+                    # For special keys, create a key combination string
+                    key_string = f"{{{step['key']}}}"
+                    return automation_helper.keys(key_string)
+                else:
+                    # For regular letters/numbers, just send them directly
+                    return automation_helper.keys(step['key'])
+                
+            elif step['type'] == 'key_combination':
+                # Key combination using Windows API
+                modifiers_str = '+'.join(step['modifiers'])
+                key_string = f"{{{modifiers_str}+{step['key']}}}"
+                return automation_helper.keys(key_string)
+                
+            elif step['type'] == 'key_repeat':
+                # Repeat key presses
+                key_string = f"{{{step['key']}}}"
+                for i in range(step['count']):
+                    success = automation_helper.keys(key_string)
+                    if not success:
+                        return False
+                    time.sleep(0.1)  # Small delay between repeats
+                return True
+                
+            elif step['type'] in ['menu_text', 'menu_item_text']:
+                # For menu navigation, we could implement text search later
+                # For now, just indicate success
+                print(f"  ℹ️  Menu navigation not yet implemented: {step['description']}")
+                return True
+                
+            else:
+                print(f"  ❌ Unknown step type: {step['type']}")
+                return False
+                
+        except Exception as e:
+            print(f"  ❌ Step execution failed: {e}")
+            return False
+
