@@ -20,6 +20,7 @@ def select_countries(automation_helper, country_list=None):
         
         time.sleep(0.5)
         automation_helper.keys("{tab 2}")
+        time.sleep(0.5)
         
         # Full list of all countries in the UI (in order as they appear)
         all_countries = [

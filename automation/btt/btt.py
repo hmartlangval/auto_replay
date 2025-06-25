@@ -108,7 +108,7 @@ class BrandTestToolAutomation:
         # each child node has a sequence associated to it, so we implement this later
         
         
-        edit_emvco_l3_test_session_window = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
+        edit_emvco_l3_test_session_window = ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")
         print(f"✅ Found Project Setup window: {edit_emvco_l3_test_session_window.hwnd}")
         if not edit_emvco_l3_test_session_window.hwnd:
             print("❌ No Project Setup window found")
@@ -125,7 +125,14 @@ class BrandTestToolAutomation:
             print("❌ No edit answers button found")
             return False
         
-        select_countries(edit_emvco_l3_test_session_window, ["United States"])
+        time.sleep(1.5)
+        # immediately switch control to the content pane
+        edit_emvco_l3_test_session_window.click((
+            edit_answers_location[0],
+            edit_answers_location[1] + 50
+        ))
+        
+        select_countries(edit_emvco_l3_test_session_window, ["Algeria"])
         
         
         
