@@ -4,11 +4,22 @@ from tkinter import messagebox, simpledialog
 import time
 import threading
 import platform
+from dotenv import load_dotenv
 from utils.code_generator import (
     generate_file_header, generate_imports, generate_screen_detection_function,
     generate_validation_function, generate_replay_function, generate_main_section
 )
 from utils.file_utils import generate_unique_filename, generate_suggested_name, ensure_sequences_directory
+from utils.image_scanner import scan_image_with_bbox, create_advanced_scan_dialog
+from utils.windows_automation import ManualAutomationHelper
+
+load_dotenv()
+
+# Configuration - Change this to target different applications
+APP_TITLE = os.getenv("APP_TITLE")
+
+# Global variables
+automation_helper = None
 
 try:
     from pynput import mouse, keyboard
@@ -17,6 +28,12 @@ try:
     PYNPUT_AVAILABLE = True
 except ImportError:
     PYNPUT_AVAILABLE = False
+
+try:
+    import win32gui, win32api, win32con
+    PYWIN32_AVAILABLE = True
+except ImportError:
+    PYWIN32_AVAILABLE = False
 
 # Windows-specific imports for DPI detection
 if platform.system() == 'Windows':
@@ -341,9 +358,140 @@ class SequenceRecorder:
         
         return True, f"Sequence saved as: {filename}"
 
-def show_message():
-    """Show a message box when button is clicked"""
-    messagebox.showinfo("Message", "Hello from the button!")
+def initialize_automation_helper():
+    """Initialize the automation helper to target this application"""
+    global automation_helper
+    
+    if not PYWIN32_AVAILABLE:
+        print("❌ pywin32 not available - Windows automation disabled")
+        _update_status_label("Windows automation disabled (missing pywin32)")
+        return
+    
+    try:
+        # Small delay to ensure window is fully created
+        root.after(1000, lambda: _setup_automation_helper())
+    except Exception as e:
+        print(f"Error initializing automation helper: {e}")
+        automation_helper = None
+
+def _setup_automation_helper():
+    """Helper function to set up automation after window is ready"""
+    global automation_helper
+    try:
+        automation_helper = ManualAutomationHelper(target_window_title=APP_TITLE)
+        print(f"✅ Automation helper initialized for: '{APP_TITLE}'")
+        automation_helper.setup_window(bbox = (56, 37, 100, 609))
+        
+        # Verify the automation helper is working
+        if automation_helper.is_window_valid():
+            window_info = automation_helper.get_window_info()
+            print(f"Window info: {window_info}")
+            
+            # Update status label to show success
+            _update_status_label("Windows automation ready ✅")
+        else:
+            print("⚠️ Warning: Window handle is not valid")
+            _update_status_label("Windows automation warning ⚠️")
+            
+    except Exception as e:
+        print(f"❌ Error setting up automation helper: {e}")
+        automation_helper = None
+        _update_status_label("Windows automation failed ❌")
+
+def _update_status_label(automation_status):
+    """Update the status label with new automation status"""
+    try:
+        pynput_status = "Ready to record sequences" if PYNPUT_AVAILABLE else "Install pynput to enable recording"
+        status_text = f"{pynput_status} | {automation_status}"
+        
+        # Find the status label and update it
+        for widget in root.winfo_children():
+            if isinstance(widget, tk.Label) and "sequences" in widget.cget("text"):
+                widget.config(text=status_text)
+                break
+    except Exception as e:
+        print(f"Error updating status label: {e}")
+
+def scan_image():
+    """Scan for plus-collapsed.png image within the automation helper's bounding box"""
+    global automation_helper
+    
+    if not PYWIN32_AVAILABLE:
+        messagebox.showerror("Error", "pywin32 is required for Windows automation.\n\nPlease install it using:\npip install pywin32")
+        return
+    
+    if not automation_helper:
+        messagebox.showerror("Error", "Automation helper is not initialized.\n\nPlease wait for initialization or restart the application.")
+        return
+    
+    # Use the utility function from image_scanner
+    result = scan_image_with_bbox(automation_helper, "plus-collapsed.png", threshold=0.8)
+    
+    if result['success']:
+        if result['found_count'] > 0:
+            # Format the results message
+            message = f"Found {result['found_count']} instance(s) of '{result['image_name']}':\n"
+            message += f"Search area: {result['search_area']}\n"
+            message += f"Window bbox: {result['bbox']}\n\n"
+            
+            for i, location in enumerate(result['locations'], 1):
+                abs_pos = location['absolute']
+                rel_pos = location['relative']
+                message += f"{i}. Absolute: ({abs_pos[0]}, {abs_pos[1]}) | Relative: ({rel_pos[0]}, {rel_pos[1]})\n"
+            
+            messagebox.showinfo("Image Scan Results", message)
+        else:
+            message = f"No instances of '{result['image_name']}' found in window.\n\n"
+            message += f"Search area: {result['search_area']}\n"
+            message += f"Window bbox: {result['bbox']}"
+            messagebox.showinfo("Image Scan Results", message)
+    else:
+        messagebox.showerror("Error", result['error'])
+
+def scan_image_advanced():
+    """Open advanced image scanning dialog"""
+    global automation_helper
+    
+    if not PYWIN32_AVAILABLE or not automation_helper:
+        messagebox.showerror("Error", "Windows automation is not available.")
+        return
+    
+    # Use the utility function from image_scanner
+    create_advanced_scan_dialog(root, automation_helper)
+
+def test_automation():
+    """Test the automation helper functionality"""
+    global automation_helper
+    
+    if not PYWIN32_AVAILABLE:
+        messagebox.showerror("Error", "pywin32 is required for Windows automation.\n\nPlease install it using:\npip install pywin32")
+        return
+    
+    if not automation_helper:
+        messagebox.showerror("Error", "Automation helper is not initialized.\n\nPlease wait for initialization or restart the application.")
+        return
+    
+    try:
+        # Test window information
+        if automation_helper.is_window_valid():
+            window_info = automation_helper.get_window_info()
+            
+            message = f"✅ Automation Helper Test Results:\n\n"
+            message += f"Window Title: {window_info.get('title', 'Unknown')}\n"
+            message += f"Window Handle: {window_info.get('handle', 'Unknown')}\n"
+            message += f"Position: ({window_info.get('left', 0)}, {window_info.get('top', 0)})\n"
+            message += f"Size: {window_info.get('width', 0)}x{window_info.get('height', 0)}\n"
+            message += f"Visible: {window_info.get('is_visible', False)}\n"
+            message += f"Minimized: {window_info.get('is_minimized', False)}\n"
+            message += f"Maximized: {window_info.get('is_maximized', False)}\n\n"
+            message += "Automation helper is ready for use!"
+            
+            messagebox.showinfo("Automation Test", message)
+        else:
+            messagebox.showerror("Error", "Window handle is no longer valid.\n\nThe automation helper may need to be reinitialized.")
+    
+    except Exception as e:
+        messagebox.showerror("Error", f"Error testing automation helper:\n\n{str(e)}")
 
 def record_sequence():
     """Handle the Record Sequence button click"""
@@ -444,9 +592,12 @@ def main():
     global root
     # Create the main window
     root = tk.Tk()
-    root.title("Hello World Application with Sequence Recorder")
+    root.title("Fiserv Automation")
     root.geometry("500x400")  # Made slightly larger
     root.resizable(True, True)
+    
+    # Initialize automation helper after window is created
+    initialize_automation_helper()
     
     # Create and pack a label
     hello_label = tk.Label(
@@ -467,18 +618,35 @@ def main():
     )
     welcome_label.pack()
     
-    # Create the original button
-    hello_button = tk.Button(
-        root,
-        text="Click Me!",
-        command=show_message,
-        font=("Arial", 14),
+    # Create buttons frame for scan options
+    scan_frame = tk.Frame(root)
+    scan_frame.pack(pady=10)
+    
+    # Create the scan image button (simple)
+    scan_button = tk.Button(
+        scan_frame,
+        text="Scan Image",
+        command=scan_image,
+        font=("Arial", 12),
         bg="#4CAF50",
         fg="white",
-        padx=20,
-        pady=10
+        padx=15,
+        pady=8
     )
-    hello_button.pack(pady=10)
+    scan_button.pack(side=tk.LEFT, padx=5)
+    
+    # Create the advanced scan button
+    advanced_scan_button = tk.Button(
+        scan_frame,
+        text="Advanced Scan",
+        command=scan_image_advanced,
+        font=("Arial", 12),
+        bg="#9C27B0",
+        fg="white",
+        padx=15,
+        pady=8
+    )
+    advanced_scan_button.pack(side=tk.LEFT, padx=5)
     
     # Create the Record Sequence button
     record_button = tk.Button(
@@ -493,10 +661,32 @@ def main():
     )
     record_button.pack(pady=10)
     
+    # Create the Test Automation button
+    test_automation_button = tk.Button(
+        root,
+        text="Test Automation",
+        command=test_automation,
+        font=("Arial", 14),
+        bg="#2196F3",
+        fg="white",
+        padx=20,
+        pady=10
+    )
+    test_automation_button.pack(pady=10)
+    
     # Add status label
+    pynput_status = "Ready to record sequences" if PYNPUT_AVAILABLE else "Install pynput to enable recording"
+    
+    if PYWIN32_AVAILABLE:
+        automation_status = "Windows automation will initialize shortly..."
+    else:
+        automation_status = "Install pywin32 for Windows automation"
+    
+    status_text = f"{pynput_status} | {automation_status}"
+    
     status_label = tk.Label(
         root,
-        text="Ready to record sequences" if PYNPUT_AVAILABLE else "Install pynput to enable recording",
+        text=status_text,
         font=("Arial", 10),
         fg="green" if PYNPUT_AVAILABLE else "red"
     )
