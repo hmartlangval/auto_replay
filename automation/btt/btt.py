@@ -80,17 +80,17 @@ class BrandTestToolAutomation:
         #     print("❌ Failed to run sequence")
         #     return False
         
-        # time.sleep(1)
-        # # Now the Project Settings Window is open
-        # # Search for a new window
-        # project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
-        # print(f"✅ Found Project Setup window: {project_setup_window_handle.hwnd}")
-        # if not project_setup_window_handle.hwnd:
-        #     print("❌ No Project Setup window found")
-        #     return False
+        time.sleep(1)
+        # Now the Project Settings Window is open
+        # Search for a new window
+        project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
+        print(f"✅ Found Project Setup window: {project_setup_window_handle.hwnd}")
+        if not project_setup_window_handle.hwnd:
+            print("❌ No Project Setup window found")
+            return False
         
         # # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
-        # project_setup_window_handle.setup_window(bbox=(100, 100, 1050, 646))
+        project_setup_window_handle.setup_window(bbox=(100, 100, 1050, 646))
         
         
         # GOAL: To collapse all tree items from bottom up, so we are guaranteed how the UI looks like
@@ -108,18 +108,6 @@ class BrandTestToolAutomation:
         # each child node has a sequence associated to it, so we implement this later
         
         
-        edit_emvco_l3_test_session_window = ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")
-        print(f"✅ Found Project Setup window: {edit_emvco_l3_test_session_window.hwnd}")
-        if not edit_emvco_l3_test_session_window.hwnd:
-            print("❌ No Project Setup window found")
-            return False
-        
-        
-        # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
-        # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
-        edit_emvco_l3_test_session_window.setup_window(bbox=(71, 65, 1270, 707))
-        
-        
         # Lets scan for image for starting button
         start_button_location = scan_for_image("start-tse-test-session.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
         if start_button_location:
@@ -129,8 +117,8 @@ class BrandTestToolAutomation:
             print("❌ No start button found")
             return False
         
-        # this adds a new button into the UI, we need to click on it
-        # we scan for the new button image
+        # this adds a edit button into the UI, we need to click on it
+        # we scan for the edit button image
         edit_button_location = scan_for_image("edit-tse-test-session.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
         if edit_button_location:
             edit_emvco_l3_test_session_window.click(edit_button_location)
@@ -139,6 +127,20 @@ class BrandTestToolAutomation:
             print("❌ No edit button found")
             return False
         
+
+        # Now we are in the Edit EMVCo L3 Test Session - Questionnaire window
+        edit_emvco_l3_test_session_window = ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")
+        print(f"✅ Found Project Setup window: {edit_emvco_l3_test_session_window.hwnd}")
+        if not edit_emvco_l3_test_session_window.hwnd:
+            print("❌ No Project Setup window found")
+            return False
+        
+        # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
+        # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
+        edit_emvco_l3_test_session_window.setup_window(bbox=(71, 65, 1270, 707))
+        
+        
+       
         # What we should see now is a tabbed UI and first tab is highlighted
         # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
         edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
