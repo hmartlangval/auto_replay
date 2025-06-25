@@ -561,28 +561,30 @@ def record_sequence():
         "Recording has started!\n\n"
         "• Perform your actions now\n"
         "• Press ESC to stop recording\n"
-        "• The window will minimize to avoid interference"
+        "• The window will hide to avoid interference"
     )
     
-    # Store current window geometry before minimizing
+    # Store current window geometry before hiding
     global window_geometry
     window_geometry = root.geometry()
     
-    # Minimize the main window
-    root.iconify()
+    # Hide the main window (can't use iconify with overrideredirect=True)
+    root.withdraw()
     
-    # Start recording in a separate thread
-    def start_recording_thread():
-        recorder.start_recording()
-        
-        # Wait for recording to stop (when ESC is pressed)
-        while recorder.recording:
-            time.sleep(0.1)
-        
-        # Recording stopped, restore window and ask for name
-        root.after(0, finish_recording)
+    # Start recording
+    recorder.start_recording()
     
-    threading.Thread(target=start_recording_thread, daemon=True).start()
+    # Poll for recording completion from main thread
+    def check_recording_status():
+        if recorder.recording:
+            # Still recording, check again in 100ms
+            root.after(100, check_recording_status)
+        else:
+            # Recording stopped, finish up
+            finish_recording()
+    
+    # Start polling
+    root.after(100, check_recording_status)
 
 def get_suggested_sequence_name():
     """Get a unique suggested name for the sequence using utility"""
