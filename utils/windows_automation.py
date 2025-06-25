@@ -153,7 +153,7 @@ def get_window_info(hwnd: int) -> Optional[dict]:
 
 
 class ManualAutomationHelper:
-    def __init__(self, window_handle=None, target_window_title=None):
+    def __init__(self, window_handle=None, target_window_title=None, title_starts_with=False):
         """
         Initialize the helper with window information.
         
@@ -164,7 +164,10 @@ class ManualAutomationHelper:
         if window_handle:
             self.hwnd = window_handle
         elif target_window_title:
-            self.hwnd = win32gui.FindWindow(None, target_window_title)
+            if title_starts_with:
+                self.hwnd = find_windows_by_title_starts_with(target_window_title)
+            else:
+                self.hwnd = win32gui.FindWindow(None, target_window_title)
             if not self.hwnd:
                 raise ValueError(f"Window not found: '{target_window_title}'")
         else:

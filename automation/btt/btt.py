@@ -5,11 +5,10 @@ import sys
 import os
 import time
 
-from utils.windows_automation import find_windows_by_title_starts_with
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils import (
-    find_windows_by_title, get_window_info, ManualAutomationHelper, NavigationParser, setup_window_by_handle
+    ManualAutomationHelper, NavigationParser
 )
 
 
@@ -72,17 +71,17 @@ class BrandTestToolAutomation:
         time.sleep(1)
         
         # Search for a new window
-        project_setup_window = find_windows_by_title_starts_with("Project Settings -")
-        print(f"✅ Found Project Setup window: {project_setup_window}")
-        if not project_setup_window:
+        project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings -", title_starts_with=True)
+        print(f"✅ Found Project Setup window: {project_setup_window_handle.hwnd}")
+        if not project_setup_window_handle.hwnd:
             print("❌ No Project Setup window found")
             return False
         
-        setup_window_by_handle(project_setup_window[0][0], (100, 100, 1050, 646))
+        project_setup_window_handle.setup_window(bbox=(100, 100, 1050, 646))
         
         # Click on the window
-        if not self.automation_helper.click(project_setup_window[0][0]):
-            return False
+        # if not self.automation_helper.click(project_setup_window[0][0]):
+        #     return False
         
         time.sleep(1)
         

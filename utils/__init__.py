@@ -5,7 +5,7 @@ from .image_scanner import (
 )
 from .windows_automation import (
     ManualAutomationHelper, list_all_windows, find_windows_by_title, 
-    find_windows_by_title_starts_with, get_window_info, setup_window_by_handle
+    find_windows_by_title_starts_with, get_window_info
 )
 from .navigation_parser import NavigationParser
 from .common import show_modal_input_dialog, show_result_dialog

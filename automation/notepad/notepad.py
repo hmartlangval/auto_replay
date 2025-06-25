@@ -7,7 +7,7 @@ import time
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils import (
-    find_windows_by_title, get_window_info, ManualAutomationHelper, NavigationParser
+   ManualAutomationHelper, NavigationParser
 )
 
 
