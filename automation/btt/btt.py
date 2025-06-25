@@ -125,21 +125,135 @@ class BrandTestToolAutomation:
             print("❌ No edit answers button found")
             return False
         
-        time.sleep(1.5)
-        # immediately switch control to the content pane
-        edit_emvco_l3_test_session_window.click((
-            edit_answers_location[0],
-            edit_answers_location[1] + 50
-        ))
+        # Start filling questionairres
         
-        select_countries(edit_emvco_l3_test_session_window, ["Algeria"])
+        # selecting countries
+        # this one has a multiple select list, space to select, up/down to navigate
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        if not select_countries(edit_emvco_l3_test_session_window, ["Algeria"]):
+            print("❌ Failed to select countries")
+            return False
+        
+        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_space=True)
+        
+        # acquire processor name
+        # this one has a single text input
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("some duummy name")
+        self.send_tabs(edit_emvco_l3_test_session_window, 1)
+        
+        # acquire processor name
+        # this one has a single text input
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("some duummy name")
+        self.send_tabs(edit_emvco_l3_test_session_window, 1)
+        
+        # tester information
+        # this one has 2 text inputs, one name and one email
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("uusername")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("email-test@yopmail.com")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_space=True)
+        
+        # testing
+        # this one has a checkbox, space to select
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.keys("{space}") # to check the checkbox
+        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_space=True)
+        
+        # deployment type
+        # this one has a radio input, down arrow to navigate, space to select
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.keys("{down 2}")
+        self.send_tabs(edit_emvco_l3_test_session_window, 1, followed_by_space=True)
+        
+        # terminal ATM/Information
+        # this one has 3 text inputs
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("terminal name")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("model name")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("version info")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
+
+        # Reference Number
+        time.sleep(1)
+        # this one has 2 text inputs
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("reference number")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("kernel #38293")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
+        
+        # Contact chip offline data authentication (ODA)
+        # this is a radio input so tab will navigate to different choices, we need to use up/down for toggling the selection
+        # for this we ensure we select the first one first, then use arrows if we should change it
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2) 
+        edit_emvco_l3_test_session_window.keys("{space}") #selecting the first item
+        edit_emvco_l3_test_session_window.keys("{down}") #selecting the second item
+        self.send_tabs(edit_emvco_l3_test_session_window, 1, followed_by_space=True)
+        
+        #Contact Only features
+        # another 2 sets of radio inputs
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.keys("{space}") #selecting the first item
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.keys("{space}") #selecting the first item
+        self.send_tabs(edit_emvco_l3_test_session_window, 1, followed_by_space=True)
+        
+        # Comment box
+        # this is a single text input
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("some comment")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
+        
+        # Test Session Name
+        time.sleep(1)
+        self.send_tabs(edit_emvco_l3_test_session_window, 2)
+        edit_emvco_l3_test_session_window.type("some test session name")
+        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
         
         
+        # Final information screen
+        # This one has a confirm button by default
+        time.sleep(1)
+        confirm_information_button_location = scan_for_image("confirm-information-button.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        if confirm_information_button_location:
+            edit_emvco_l3_test_session_window.click(confirm_information_button_location)
+        else:
+            print("❌ No confirm information button found")
+            return False
         
-        time.sleep(1)       
+        time.sleep(3)
+        
+        # with all successful, we have a screen where OK button is auto highlighted
+        # we pressed it
+        edit_emvco_l3_test_session_window.keys("{space}")
         
         print("🎉 All automation steps completed successfully!")
         return True
+    
+    def send_tabs(automation_helper, count, followed_by_space=False, followed_by_enter=False):
+        for _ in range(count):
+            time.sleep(0.5)
+            automation_helper.keys("{tab}")
+        if followed_by_space:
+            time.sleep(0.5)
+            automation_helper.keys("{space}")
+        if followed_by_enter:
+            time.sleep(0.5)
+            automation_helper.keys("{enter}")
     
     def get_window_info(self):
         """Get current window information"""

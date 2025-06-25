@@ -18,11 +18,6 @@ def select_countries(automation_helper, country_list=None):
     try:
         print(f"🌍 Starting country selection for {len(country_list)} countries...")
         
-        time.sleep(0.5)
-        automation_helper.keys("{tab 2}")
-        time.sleep(0.5)
-        
-        # Full list of all countries in the UI (in order as they appear)
         all_countries = [
             "Afghanistan", "Albania", "Algeria", "American Samoa", "Andorra", "Angola", "Anguilla", "Antigua",
             "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh",
@@ -135,14 +130,14 @@ def select_countries(automation_helper, country_list=None):
         if selected_count == len(country_list):
             print(f"✅ Successfully selected all {selected_count} countries")
             
-            # Final step: Press Tab twice and Enter once
-            print("🎯 Completing selection: Tab -> Tab -> Enter")
-            automation_helper.keys("{tab}")
-            time.sleep(0.1)
-            automation_helper.keys("{tab}")
-            time.sleep(0.1)
-            automation_helper.keys("{enter}")
-            time.sleep(0.2)
+            # # Final step: Press Tab twice and Enter once
+            # print("🎯 Completing selection: Tab -> Tab -> Enter")
+            # automation_helper.keys("{tab}")
+            # time.sleep(0.1)
+            # automation_helper.keys("{tab}")
+            # time.sleep(0.1)
+            # automation_helper.keys("{enter}")
+            # time.sleep(0.2)
             
             return True
         else:
