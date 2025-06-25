@@ -165,7 +165,11 @@ class ManualAutomationHelper:
             self.hwnd = window_handle
         elif target_window_title:
             if title_starts_with:
-                self.hwnd = find_windows_by_title_starts_with(target_window_title)
+                windows = find_windows_by_title_starts_with(target_window_title)
+                if windows:
+                    self.hwnd = windows[0][0]  # Extract handle from first tuple
+                else:
+                    self.hwnd = None
             else:
                 self.hwnd = win32gui.FindWindow(None, target_window_title)
             if not self.hwnd:
@@ -316,7 +320,7 @@ class ManualAutomationHelper:
             print(f"❌ Error setting up window: {e}")
             return False
      
-    def setup_window(self, bbox=None, hwnd=None):
+    def setup_window(self, bbox=None):
         """
         Setup the target application window.
         
@@ -329,7 +333,7 @@ class ManualAutomationHelper:
         
         try:
             # Find target window
-            hwnd = win32gui.FindWindow(None, self.target_window_title)
+            hwnd = self.hwnd or win32gui.FindWindow(None, self.target_window_title)
             if not hwnd:
                 print(f"❌ Window not found: '{self.target_window_title}'")
                 return False

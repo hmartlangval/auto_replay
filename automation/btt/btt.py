@@ -71,7 +71,7 @@ class BrandTestToolAutomation:
         time.sleep(1)
         
         # Search for a new window
-        project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings -", title_starts_with=True)
+        project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
         print(f"✅ Found Project Setup window: {project_setup_window_handle.hwnd}")
         if not project_setup_window_handle.hwnd:
             print("❌ No Project Setup window found")
