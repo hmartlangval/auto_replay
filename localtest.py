@@ -154,7 +154,8 @@ def explore_tree_items(automation_helper):
     #     automation_helper.click(plus_results[0])  # Click the first plus icon found
     
     # Now i want to click on the text to the right of the plus-collapsed.png image and focus on that
-    automation_helper.click((plus_results[0][0] + 40, plus_results[0][1]))
+    # automation_helper.click((plus_results[0][0] + 40, plus_results[0][1]))
+    # graphics.draw_rectangle(plus_results[0][0] + 30, plus_results[0][1]-10, plus_results[0][0] + 40, plus_results[0][1]+5, color="#00FF00", width=2, label="Focus Region")
     
     
     

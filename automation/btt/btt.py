@@ -5,6 +5,9 @@ import sys
 import os
 import time
 
+from automation.btt.helpers import select_countries
+from utils.image_scanner import scan_for_image
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from utils import (
@@ -64,40 +67,69 @@ class BrandTestToolAutomation:
         if not self.window_handle:
             return False
      
-        # Send navigation keys to create project
-        if not self.send_navigation_keys(navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
-            return False
-        
-        time.sleep(0.5)
-        
-        # Run sequence to fill in project name and description
-        print("🎬 Running sequence to fill project details...")
-        success = play_sequence("fill_project_details", blocking=True)
-        if not success:
-            print("❌ Failed to run sequence")
-            return False
-        
-        # # Send navigation keys
-        # if not self.send_navigation_keys(navigation_path="{Alt+C} -> {Down 1} -> {Enter}"):
+        # # Send navigation keys to create project
+        # if not self.send_navigation_keys(navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
         #     return False
         
-        time.sleep(1)
+        # time.sleep(0.5)
         
-        # Search for a new window
-        project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
-        print(f"✅ Found Project Setup window: {project_setup_window_handle.hwnd}")
-        if not project_setup_window_handle.hwnd:
+        # # Run sequence to fill in project name and description
+        # print("🎬 Running sequence to fill project details...")
+        # success = play_sequence("fill_project_details", blocking=True)
+        # if not success:
+        #     print("❌ Failed to run sequence")
+        #     return False
+        
+        # time.sleep(1)
+        # # Now the Project Settings Window is open
+        # # Search for a new window
+        # project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
+        # print(f"✅ Found Project Setup window: {project_setup_window_handle.hwnd}")
+        # if not project_setup_window_handle.hwnd:
+        #     print("❌ No Project Setup window found")
+        #     return False
+        
+        # # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
+        # project_setup_window_handle.setup_window(bbox=(100, 100, 1050, 646))
+        
+        
+        # GOAL: To collapse all tree items from bottom up, so we are guaranteed how the UI looks like
+        # use the image search to search for all image in the setup window handle bounding box, the top left 30% of the bounding box only.
+        # any images minus-expanded.png found should be clicked from bottom up one at a time, until none is found.
+        
+        
+        # GOAL: Expand the first parent node.
+        # Now that all of them is collapsed, we know exactly where the tree items are
+        # click on the first plus icon "plus-collapsed.png", so the first parent node expanded.
+        
+        
+        # Now that the first parent is expanded, we know exactly the sequence for each child to play
+        # we make decisions which sequence to play depending on business logics.
+        # each child node has a sequence associated to it, so we implement this later
+        
+        
+        edit_emvco_l3_test_session_window = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
+        print(f"✅ Found Project Setup window: {edit_emvco_l3_test_session_window.hwnd}")
+        if not edit_emvco_l3_test_session_window.hwnd:
             print("❌ No Project Setup window found")
             return False
         
-        project_setup_window_handle.setup_window(bbox=(100, 100, 1050, 646))
         
-        # Click on the window
-        # if not self.automation_helper.click(project_setup_window[0][0]):
-        #     return False
+        # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
+        # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
+        edit_emvco_l3_test_session_window.setup_window(bbox=(71, 65, 1270, 707))
+        edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        if edit_answers_location:
+            edit_emvco_l3_test_session_window.click(edit_answers_location)
+        else:
+            print("❌ No edit answers button found")
+            return False
         
-        time.sleep(1)
+        select_countries(edit_emvco_l3_test_session_window, ["United States"])
         
+        
+        
+        time.sleep(1)       
         
         print("🎉 All automation steps completed successfully!")
         return True
