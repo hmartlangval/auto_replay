@@ -173,6 +173,7 @@ class ManualAutomationHelper:
         self.target_window_title = target_window_title or self._get_target_window_title()
         
         # Initialize bbox with current window rect as default
+        self._bring_to_focus()
         self._initialize_default_bbox()
     
     def _get_target_window_title(self):
@@ -252,15 +253,15 @@ class ManualAutomationHelper:
         left, top, right, bottom = self.bbox
         return left <= x <= right and top <= y <= bottom
     
-    def _bring_to_focus(self):
+    def _bring_to_focus(self, hwnd=None):
         """Bring the target window to focus."""
         try:
             # Show window if minimized
-            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
+            win32gui.ShowWindow(hwnd or self.hwnd, win32con.SW_RESTORE)
             time.sleep(0.1)
             
             # Bring to foreground
-            win32gui.SetForegroundWindow(self.hwnd)
+            win32gui.SetForegroundWindow(hwnd or self.hwnd)
             time.sleep(0.1)
             
             return True
@@ -268,7 +269,51 @@ class ManualAutomationHelper:
             print(f"Warning: Could not bring window to focus: {e}")
             return False
 
-    def setup_window(self, bbox=None):
+    def setup_window_by_handle(self, hwnd=int, bbox=tuple):
+        """
+        Setup the target application window.
+        
+        Args:
+            bbox: Optional bounding box as (left, top, right, bottom) tuple.
+                  If provided, updates self.bbox and uses it for window positioning.
+                  If None, uses current self.bbox.
+        """
+        print("Setting up target window...")
+        
+        try:
+            if not hwnd:
+                print(f"❌ Handle is not provided")
+                return False
+            
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            time.sleep(0.1)
+            win32gui.SetForegroundWindow(hwnd)
+            time.sleep(0.1)
+            print("✅ Window brought to focus")
+            
+            # Resize and position window using self.bbox
+            target_left, target_top, target_right, target_bottom = bbox
+            
+            width = target_right - target_left
+            height = target_bottom - target_top
+            
+            win32gui.MoveWindow(hwnd, target_left, target_top, width, height, True)
+            time.sleep(0.2)
+            
+            # Verify positioning
+            current_rect = win32gui.GetWindowRect(hwnd)
+            print(f"✅ Window repositioned:")
+            print(f"   Target: Left:{target_left} Top:{target_top} Right:{target_right} Bottom:{target_bottom}")
+            print(f"   Actual: Left:{current_rect[0]} Top:{current_rect[1]} Right:{current_rect[2]} Bottom:{current_rect[3]}")
+            
+            print("🎉 Window setup completed!")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error setting up window: {e}")
+            return False
+     
+    def setup_window(self, bbox=None, hwnd=None):
         """
         Setup the target application window.
         
@@ -326,7 +371,7 @@ class ManualAutomationHelper:
             print(f"❌ Error setting up window: {e}")
             return False
             
-    def type(self, text):
+    def type(self, text, hwnd=None):
         """
         Type text into the focused window.
         
@@ -338,7 +383,7 @@ class ManualAutomationHelper:
         """
         try:
             # Bring window to focus
-            self._bring_to_focus()
+            self._bring_to_focus(hwnd)
             
             # Type each character
             for char in text:
@@ -402,7 +447,7 @@ class ManualAutomationHelper:
             print(f"Error clicking at {coordinate}: {e}")
             return False
     
-    def keys(self, key_combination):
+    def keys(self, key_combination, hwnd=None):
         """
         Send key combination with modifiers.
         
@@ -414,8 +459,11 @@ class ManualAutomationHelper:
             bool: Success status
         """
         try:
-            # Bring window to focus
-            self._bring_to_focus()
+            
+            if not hwnd:
+                hwnd = self.hwnd
+                # Bring window to focus
+            self._bring_to_focus(hwnd)
             
             # Parse key combination
             if key_combination.startswith('{') and key_combination.endswith('}'):

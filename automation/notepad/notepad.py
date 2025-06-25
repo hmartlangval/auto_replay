@@ -16,59 +16,12 @@ class NotepadAutomation:
     
     def __init__(self):
         self.window_title = "Untitled - Notepad"
-        self.automation_helper = None
-        self.window_handle = None
-        self.window_info = None
         
-    def search_window(self):
-        """Search for Window with title 'Notepad'"""
-        try:
-            print(f"🔍 Step 1: Searching for window with title '{self.window_title}'...")
-            
-            # Find windows by title
-            windows = find_windows_by_title(self.window_title)
-            
-            if not windows:
-                print(f"❌ No windows found with title '{self.window_title}'")
-                return False
-                
-            # Get the first matching window - extract handle from tuple
-            self.window_handle = windows[0][0]  # windows[0] is (handle, title) tuple
-            self.window_info = get_window_info(self.window_handle)
-            
-            print(f"✅ Found window: {self.window_info}")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Step 1 failed: {e}")
-            return False
-    
-    def bring_to_focus(self):
-        """Bring window to focus"""
-        try:
-            print("🎯 Step 2: Bringing window to focus...")
-            
-            if not self.window_handle:
-                print("❌ No window handle available. Run search_window() first.")
-                return False
-            
-            # Initialize automation helper with the found window handle
-            self.automation_helper = ManualAutomationHelper(window_handle=self.window_handle, target_window_title=self.window_title)
-            
-            # Setup the window (brings to focus and positions)
-            success = self.automation_helper.setup_window()
-            
-            if success:
-                print("✅ Window brought to focus successfully")
-                return True
-            else:
-                print("❌ Failed to bring window to focus")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Step 2 failed: {e}")
-            return False
-    
+        # Initialize automation helper with the found window handle
+        self.automation_helper = ManualAutomationHelper(target_window_title=self.window_title)
+        self.window_handle = self.automation_helper.hwnd
+        self.window_info = self.automation_helper.get_window_info()
+   
     def send_navigation_keys(self, navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
         """Send navigation keys using the navigation parser"""
         try:
@@ -107,18 +60,21 @@ class NotepadAutomation:
         """Execute all steps in sequence"""
         print(f"🚀 Starting {self.window_title} automation...")
         
-        # Search for window
-        if not self.search_window():
+        if not self.window_handle:
             return False
-            
-        # Bring to focus
-        if not self.bring_to_focus():
-            return False
-            
+     
         # Send navigation keys
-        if not self.send_navigation_keys(navigation_path="{Alt+F} -> {n}"):
+        if not self.send_navigation_keys(navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
             return False
-            
+        
+        new_window_automation_helper = ManualAutomationHelper(target_window_title="Untitled - Notepad")
+        print(f"✅ Found window: {new_window_automation_helper.target_window_title}.")
+        
+        # Type text
+        if not new_window_automation_helper.type("Hello, world!"):
+            print("❌ Failed to type text")
+            return False
+        
         print("🎉 All automation steps completed successfully!")
         return True
     
