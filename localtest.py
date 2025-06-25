@@ -131,16 +131,35 @@ def setup_project_window():
 
     # Reposition the window to the desired location
     project_setup_window_handle.setup_window(bbox=(100, 100, 1050, 646))
-    
-    # GOAL: To collapse all tree items from bottom up, so we are guaranteed how the UI looks like
-    # use the image search to search for all image in the setup window handle bounding box, the top left 30% of the bounding box only.
-    # any images minus-expanded.png found should be clicked from bottom up one at a time, until none is found.
-    
+       
+    return project_setup_window_handle
+
+
+def explore_tree_items(automation_helper):
+    """
+    Explore the tree items by clicking the plus-collapsed.png images from top to bottom.
+    Searches only in the top-left 30% of the window's bounding box.
+    """
+    # First step is to collapse all tree items
     print("🔍 Starting tree collapse process...")
-    collapse_tree_items(project_setup_window_handle)
+    collapse_tree_items(automation_helper)
+    
+    time.sleep(1)
+    print("🔍 Starting tree exploration process...")
+    
+    # Second step is to expand the first parent node
+    # search for plus-collapsed.png image in the top-left 30% of the window's bounding box.
+    plus_results = scan_for_all_occurrences("plus-collapsed.png", automation_helper.get_bbox(), threshold=0.8)
+    # if plus_results:
+    #     automation_helper.click(plus_results[0])  # Click the first plus icon found
+    
+    # Now i want to click on the text to the right of the plus-collapsed.png image and focus on that
+    automation_helper.click((plus_results[0][0] + 20, plus_results[0][1]))
     
     
-    return True
+    
+    
+
 
 graphics = ScreenOverlay()
 
@@ -156,7 +175,8 @@ if __name__ == "__main__":
         graphics.draw_rectangle(110, 200, 130, 220, color="#FF0000", width=2, label="Square 4")  # 20x20 square
         graphics.show_overlay()    # Make it visible
     else:
-        setup_project_window()
+        project_setup_window_handle = setup_project_window()
+        explore_tree_items(project_setup_window_handle)
     
     time.sleep(2)
     graphics.destroy_overlay()
