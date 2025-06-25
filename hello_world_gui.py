@@ -4,6 +4,8 @@ from tkinter import messagebox, simpledialog
 import time
 import threading
 import platform
+import signal
+import sys
 from dotenv import load_dotenv
 from utils.code_generator import (
     generate_file_header, generate_imports, generate_screen_detection_function,
@@ -20,6 +22,7 @@ APP_TITLE = os.getenv("APP_TITLE")
 
 # Global variables
 automation_helper = None
+root = None
 
 try:
     from pynput import mouse, keyboard
@@ -380,7 +383,7 @@ def _setup_automation_helper():
     try:
         automation_helper = ManualAutomationHelper(target_window_title=APP_TITLE)
         print(f"✅ Automation helper initialized for: '{APP_TITLE}'")
-        automation_helper.setup_window(bbox = (56, 37, 100, 609))
+        automation_helper.setup_window(bbox = (155, 149, 755, 652))
         
         # Verify the automation helper is working
         if automation_helper.is_window_valid():
@@ -552,6 +555,48 @@ def get_suggested_sequence_name():
     """Get a unique suggested name for the sequence using utility"""
     return generate_suggested_name()
 
+def graceful_shutdown():
+    """Gracefully shutdown the application, cleaning up all resources"""
+    global automation_helper, recorder, root
+    
+    print("\n🛑 Graceful shutdown initiated...")
+    
+    try:
+        # Stop any active recording
+        if 'recorder' in globals() and recorder and recorder.recording:
+            print("   • Stopping active recording...")
+            recorder.stop_recording()
+        
+        # Clean up automation helper
+        if automation_helper:
+            print("   • Cleaning up automation helper...")
+            # Add any cleanup methods if needed
+            automation_helper = None
+        
+        # Clean up GUI
+        if root:
+            print("   • Closing GUI...")
+            root.quit()
+            root.destroy()
+        
+        print("✅ Graceful shutdown completed successfully!")
+        
+    except Exception as e:
+        print(f"⚠️  Warning during shutdown: {e}")
+    
+    finally:
+        # Force exit if needed
+        sys.exit(0)
+
+def signal_handler(signum, frame):
+    """Handle Ctrl+C and other signals gracefully"""
+    global root
+    
+    print(f"\n🔄 Received signal {signum}, initiating graceful shutdown...")
+    
+    # Directly call graceful shutdown - more efficient than scheduling
+    graceful_shutdown()
+
 def finish_recording():
     """Finish recording and save sequence"""
     # Restore the main window with original geometry
@@ -590,123 +635,193 @@ def finish_recording():
 
 def main():
     global root
+    
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+    
+    print("🚀 Starting Fiserv Automation Taskbar...")
+    print("💡 Press Ctrl+C anytime for graceful shutdown")
+    
     # Create the main window
     root = tk.Tk()
-    root.title("Fiserv Automation")
-    root.geometry("500x400")  # Made slightly larger
-    root.resizable(True, True)
+    root.title("Fiserv Automation Taskbar")
+    
+    # Get screen dimensions
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    
+    # Configure taskbar dimensions
+    taskbar_height = 60
+    taskbar_width = screen_width
+    
+    # Position at top of screen
+    root.geometry(f"{taskbar_width}x{taskbar_height}+0+0")
+    root.resizable(False, False)
+    
+    # Configure window to stay on top and remove decorations
+    root.attributes('-topmost', True)
+    root.overrideredirect(True)  # Remove title bar completely
+    
+    # Configure root background
+    root.configure(bg='#2C3E50')
     
     # Initialize automation helper after window is created
     initialize_automation_helper()
     
-    # Create and pack a label
-    hello_label = tk.Label(
-        root, 
-        text="Hello, World!", 
-        font=("Arial", 24, "bold"),
-        fg="blue",
-        pady=20
+    # Create main horizontal frame for all controls
+    main_frame = tk.Frame(root, bg='#2C3E50', height=taskbar_height)
+    main_frame.pack(fill=tk.BOTH, expand=True)
+    main_frame.pack_propagate(False)
+    
+    # Left section: Title
+    title_frame = tk.Frame(main_frame, bg='#2C3E50')
+    title_frame.pack(side=tk.LEFT, padx=10, pady=5)
+    
+    title_label = tk.Label(
+        title_frame,
+        text="Fiserv Automation",
+        font=("Arial", 14, "bold"),
+        fg="white",
+        bg='#2C3E50'
     )
-    hello_label.pack()
+    title_label.pack(anchor='w')
     
-    # Create a welcome message
-    welcome_label = tk.Label(
-        root,
-        text="Welcome to your first Python GUI application!",
-        font=("Arial", 12),
-        pady=10
-    )
-    welcome_label.pack()
+    # Center section: Main buttons
+    buttons_frame = tk.Frame(main_frame, bg='#2C3E50')
+    buttons_frame.pack(side=tk.LEFT, padx=20, pady=5, expand=True)
     
-    # Create buttons frame for scan options
-    scan_frame = tk.Frame(root)
-    scan_frame.pack(pady=10)
+    # Button styling
+    button_style = {
+        'font': ("Arial", 10, "bold"),
+        'fg': "white",
+        'relief': 'flat',
+        'cursor': 'hand2',
+        'height': 2
+    }
     
-    # Create the scan image button (simple)
+    # Create all main buttons horizontally
     scan_button = tk.Button(
-        scan_frame,
+        buttons_frame,
         text="Scan Image",
         command=scan_image,
-        font=("Arial", 12),
-        bg="#4CAF50",
-        fg="white",
-        padx=15,
-        pady=8
+        bg="#27AE60",
+        width=12,
+        **button_style
     )
-    scan_button.pack(side=tk.LEFT, padx=5)
+    scan_button.pack(side=tk.LEFT, padx=2)
     
-    # Create the advanced scan button
     advanced_scan_button = tk.Button(
-        scan_frame,
+        buttons_frame,
         text="Advanced Scan",
         command=scan_image_advanced,
-        font=("Arial", 12),
-        bg="#9C27B0",
-        fg="white",
-        padx=15,
-        pady=8
+        bg="#8E44AD",
+        width=12,
+        **button_style
     )
-    advanced_scan_button.pack(side=tk.LEFT, padx=5)
+    advanced_scan_button.pack(side=tk.LEFT, padx=2)
     
-    # Create the Record Sequence button
     record_button = tk.Button(
-        root,
+        buttons_frame,
         text="Record Sequence",
         command=record_sequence,
-        font=("Arial", 14),
-        bg="#FF9800",
-        fg="white",
-        padx=20,
-        pady=10
+        bg="#E67E22",
+        width=14,
+        **button_style
     )
-    record_button.pack(pady=10)
+    record_button.pack(side=tk.LEFT, padx=2)
     
-    # Create the Test Automation button
     test_automation_button = tk.Button(
-        root,
+        buttons_frame,
         text="Test Automation",
         command=test_automation,
-        font=("Arial", 14),
-        bg="#2196F3",
-        fg="white",
-        padx=20,
-        pady=10
+        bg="#3498DB",
+        width=14,
+        **button_style
     )
-    test_automation_button.pack(pady=10)
+    test_automation_button.pack(side=tk.LEFT, padx=2)
     
-    # Add status label
-    pynput_status = "Ready to record sequences" if PYNPUT_AVAILABLE else "Install pynput to enable recording"
+    # Right section: Status and Exit
+    right_frame = tk.Frame(main_frame, bg='#2C3E50')
+    right_frame.pack(side=tk.RIGHT, padx=10, pady=5)
     
-    if PYWIN32_AVAILABLE:
-        automation_status = "Windows automation will initialize shortly..."
-    else:
-        automation_status = "Install pywin32 for Windows automation"
-    
-    status_text = f"{pynput_status} | {automation_status}"
+    # Status indicator (compact)
+    status_color = "#27AE60" if PYNPUT_AVAILABLE and PYWIN32_AVAILABLE else "#E74C3C"
+    status_text = "●" if PYNPUT_AVAILABLE and PYWIN32_AVAILABLE else "●"
     
     status_label = tk.Label(
-        root,
+        right_frame,
         text=status_text,
-        font=("Arial", 10),
-        fg="green" if PYNPUT_AVAILABLE else "red"
+        font=("Arial", 16),
+        fg=status_color,
+        bg='#2C3E50'
     )
-    status_label.pack(pady=5)
+    status_label.pack(side=tk.LEFT, padx=5)
     
-    # Create an exit button
+    # Exit button
     exit_button = tk.Button(
-        root,
-        text="Exit",
-        command=root.quit,
-        font=("Arial", 12),
-        bg="#f44336",
+        right_frame,
+        text="✕",
+        command=graceful_shutdown,
+        font=("Arial", 12, "bold"),
+        bg="#E74C3C",
         fg="white",
-        padx=20,
-        pady=5
+        relief='flat',
+        width=2,
+        height=1,
+        cursor='hand2'
     )
-    exit_button.pack(pady=10)
+    exit_button.pack(side=tk.LEFT, padx=5)
     
-    # Start the GUI event loop
-    root.mainloop()
+    # Add tooltips/hover effects
+    def on_enter(event, button, hover_color):
+        button.config(bg=hover_color)
+    
+    def on_leave(event, button, original_color):
+        button.config(bg=original_color)
+    
+    # Bind hover effects
+    buttons_config = [
+        (scan_button, "#27AE60", "#2ECC71"),
+        (advanced_scan_button, "#8E44AD", "#9B59B6"),
+        (record_button, "#E67E22", "#F39C12"),
+        (test_automation_button, "#3498DB", "#5DADE2"),
+        (exit_button, "#E74C3C", "#EC7063")
+    ]
+    
+    for button, original, hover in buttons_config:
+        button.bind("<Enter>", lambda e, b=button, h=hover: on_enter(e, b, h))
+        button.bind("<Leave>", lambda e, b=button, o=original: on_leave(e, b, o))
+    
+    # Set up window close protocol (even though we removed title bar)
+    root.protocol("WM_DELETE_WINDOW", graceful_shutdown)
+    
+    # Make window focusable for keyboard events
+    root.focus_set()
+    
+    # Bind Ctrl+C directly to the window as backup
+    root.bind('<Control-c>', lambda e: graceful_shutdown())
+    
+    print("✅ Taskbar ready! All systems operational.")
+    
+    # Start the GUI event loop with proper signal handling
+    try:
+        # Use a custom mainloop that's more responsive to signals
+        while True:
+            try:
+                root.update()
+                root.update_idletasks()
+                time.sleep(0.01)  # Small sleep to prevent 100% CPU usage
+            except tk.TclError:
+                # Window was destroyed
+                break
+    except KeyboardInterrupt:
+        print("\n🔄 Keyboard interrupt detected...")
+        graceful_shutdown()
+    except Exception as e:
+        print(f"\n❌ Unexpected error in main loop: {e}")
+        graceful_shutdown()
 
 if __name__ == "__main__":
     main() 
