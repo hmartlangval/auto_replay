@@ -284,7 +284,7 @@ class ManualAutomationHelper:
             hwnd = win32gui.FindWindow(None, self.target_window_title)
             if not hwnd:
                 print(f"❌ Window not found: '{self.target_window_title}'")
-                return
+                return False
             
             self.target_hwnd = hwnd
             print(f"✅ Found window: '{self.target_window_title}' (Handle: {hwnd})")
@@ -320,9 +320,11 @@ class ManualAutomationHelper:
             print(f"   Actual: Left:{current_rect[0]} Top:{current_rect[1]} Right:{current_rect[2]} Bottom:{current_rect[3]}")
             
             print("🎉 Window setup completed!")
+            return True
             
         except Exception as e:
             print(f"❌ Error setting up window: {e}")
+            return False
             
     def type(self, text):
         """

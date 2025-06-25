@@ -448,7 +448,7 @@ def scan_for_all_occurrences(image_name: str,
 
 
 def scan_image_with_bbox(automation_helper, image_name: str = "plus-collapsed.png", 
-                        threshold: float = 0.8, images_folder: str = "images") -> Dict[str, Any]:
+                        threshold: float = 0.8, images_folder: str = "images", bbox: Tuple[int, int, int, int] = None) -> Dict[str, Any]:
     """
     Scan for image within automation helper's bounding box
     
@@ -463,7 +463,10 @@ def scan_image_with_bbox(automation_helper, image_name: str = "plus-collapsed.pn
     """
     try:
         # Get bounding box from automation helper
-        bbox = automation_helper.get_bbox()
+        if bbox is None:
+            if automation_helper is None:
+                raise ValueError("automation_helper cannot be None when bbox is not provided")
+            bbox = automation_helper.get_bbox()
         left, top, right, bottom = bbox
         
         # Convert bbox from (left, top, right, bottom) to (x, y, width, height)

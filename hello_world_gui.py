@@ -22,7 +22,6 @@ load_dotenv()
 APP_TITLE = os.getenv("APP_TITLE")
 
 # Global variables
-automation_helper = None
 root = None
 shutdown_in_progress = False
 
@@ -363,107 +362,47 @@ class SequenceRecorder:
         
         return True, f"Sequence saved as: {filename}"
 
-def initialize_automation_helper():
-    """Initialize the automation helper to target this application"""
-    global automation_helper
-    
-    if not PYWIN32_AVAILABLE:
-        print("❌ pywin32 not available - Windows automation disabled")
-        _update_status_label("Windows automation disabled (missing pywin32)")
-        return
-    
-    try:
-        # Small delay to ensure window is fully created
-        root.after(1000, lambda: _setup_automation_helper())
-    except Exception as e:
-        print(f"Error initializing automation helper: {e}")
-        automation_helper = None
-
-def _setup_automation_helper():
-    """Helper function to set up automation after window is ready"""
-    global automation_helper
-        
-    try:
-        automation_helper = ManualAutomationHelper(target_window_title=APP_TITLE)
-        print(f"✅ Automation helper initialized for: '{APP_TITLE}'")
-        automation_helper.setup_window(bbox = (155, 149, 755, 652))
-        
-        # Verify the automation helper is working
-        if automation_helper.is_window_valid():
-            window_info = automation_helper.get_window_info()
-            print(f"Window info: {window_info}")
-            
-            # Update status label to show success
-            _update_status_label("Windows automation ready ✅")
-        else:
-            print("⚠️ Warning: Window handle is not valid")
-            _update_status_label("Windows automation warning ⚠️")
-            
-    except Exception as e:
-        print(f"❌ Error setting up automation helper: {e}")
-        automation_helper = None
-        _update_status_label("Windows automation failed ❌")
-
-def _update_status_label(automation_status):
-    """Update the status label with new automation status"""
-    try:
-        pynput_status = "Ready to record sequences" if PYNPUT_AVAILABLE else "Install pynput to enable recording"
-        status_text = f"{pynput_status} | {automation_status}"
-        
-        # Find the status label and update it
-        for widget in root.winfo_children():
-            if isinstance(widget, tk.Label) and "sequences" in widget.cget("text"):
-                widget.config(text=status_text)
-                break
-    except Exception as e:
-        print(f"Error updating status label: {e}")
+# Removed global automation helper functions - each automation class manages its own
 
 def scan_image():
-    """Scan for plus-collapsed.png image within the automation helper's bounding box"""
-    global automation_helper
-    
+    """Scan for plus-collapsed.png image on full screen"""
     if not PYWIN32_AVAILABLE:
         messagebox.showerror("Error", "pywin32 is required for Windows automation.\n\nPlease install it using:\npip install pywin32")
         return
     
-    if not automation_helper:
-        messagebox.showerror("Error", "Automation helper is not initialized.\n\nPlease wait for initialization or restart the application.")
-        return
-    
-    # Use the utility function from image_scanner
-    result = scan_image_with_bbox(automation_helper, "plus-collapsed.png", threshold=0.8)
-    
-    if result['success']:
-        if result['found_count'] > 0:
-            # Format the results message
-            message = f"Found {result['found_count']} instance(s) of '{result['image_name']}':\n"
-            message += f"Search area: {result['search_area']}\n"
-            message += f"Window bbox: {result['bbox']}\n\n"
+    try:
+        # Use full screen scanning
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        bounding_box = (0, 0, screen_width, screen_height)
+        
+        from utils.image_scanner import scan_for_all_occurrences
+        locations = scan_for_all_occurrences("plus-collapsed.png", bounding_box, threshold=0.8)
+        
+        if locations:
+            message = f"Found {len(locations)} instance(s) of 'plus-collapsed.png':\n"
+            message += f"Search area: {screen_width}x{screen_height} pixels (full screen)\n\n"
             
-            for i, location in enumerate(result['locations'], 1):
-                abs_pos = location['absolute']
-                rel_pos = location['relative']
-                message += f"{i}. Absolute: ({abs_pos[0]}, {abs_pos[1]}) | Relative: ({rel_pos[0]}, {rel_pos[1]})\n"
+            for i, (x, y) in enumerate(locations, 1):
+                message += f"{i}. Position: ({x}, {y})\n"
             
             messagebox.showinfo("Image Scan Results", message)
         else:
-            message = f"No instances of '{result['image_name']}' found in window.\n\n"
-            message += f"Search area: {result['search_area']}\n"
-            message += f"Window bbox: {result['bbox']}"
+            message = "No instances of 'plus-collapsed.png' found on screen.\n\n"
+            message += f"Search area: {screen_width}x{screen_height} pixels (full screen)"
             messagebox.showinfo("Image Scan Results", message)
-    else:
-        messagebox.showerror("Error", result['error'])
+            
+    except Exception as e:
+        messagebox.showerror("Error", f"Error during image scan:\n\n{str(e)}")
 
 def scan_image_advanced():
     """Open advanced image scanning dialog"""
-    global automation_helper
-    
-    if not PYWIN32_AVAILABLE or not automation_helper:
-        messagebox.showerror("Error", "Windows automation is not available.")
+    if not PYWIN32_AVAILABLE:
+        messagebox.showerror("Error", "pywin32 is required for Windows automation.\n\nPlease install it using:\npip install pywin32")
         return
     
-    # Use the utility function from image_scanner
-    create_advanced_scan_dialog(root, automation_helper)
+    # Use the utility function from image_scanner with None automation helper (will use full screen)
+    create_advanced_scan_dialog(root, None)
 
 def search_window():
     """Search for windows by title using modal input dialog"""
@@ -520,38 +459,75 @@ def search_window():
         messagebox.showerror("Error", f"Error searching for windows:\n\n{str(e)}")
 
 def test_automation():
-    """Test the automation helper functionality"""
-    global automation_helper
-    
+    """Test general automation functionality"""
     if not PYWIN32_AVAILABLE:
         messagebox.showerror("Error", "pywin32 is required for Windows automation.\n\nPlease install it using:\npip install pywin32")
         return
     
-    if not automation_helper:
-        messagebox.showerror("Error", "Automation helper is not initialized.\n\nPlease wait for initialization or restart the application.")
-        return
-    
     try:
-        # Test window information
-        if automation_helper.is_window_valid():
-            window_info = automation_helper.get_window_info()
-            
-            message = f"✅ Automation Helper Test Results:\n\n"
-            message += f"Window Title: {window_info.get('title', 'Unknown')}\n"
-            message += f"Window Handle: {window_info.get('handle', 'Unknown')}\n"
-            message += f"Position: ({window_info.get('left', 0)}, {window_info.get('top', 0)})\n"
-            message += f"Size: {window_info.get('width', 0)}x{window_info.get('height', 0)}\n"
-            message += f"Visible: {window_info.get('is_visible', False)}\n"
-            message += f"Minimized: {window_info.get('is_minimized', False)}\n"
-            message += f"Maximized: {window_info.get('is_maximized', False)}\n\n"
-            message += "Automation helper is ready for use!"
-            
-            messagebox.showinfo("Automation Test", message)
-        else:
-            messagebox.showerror("Error", "Window handle is no longer valid.\n\nThe automation helper may need to be reinitialized.")
-    
+        # Test by listing available windows
+        from utils.windows_automation import list_all_windows
+        windows = list_all_windows()
+        
+        message = f"✅ Automation Test Results:\n\n"
+        message += f"pywin32: Available ✅\n"
+        message += f"pynput: {'Available ✅' if PYNPUT_AVAILABLE else 'Not Available ❌'}\n"
+        message += f"Total windows found: {len(windows)}\n\n"
+        message += "Sample windows:\n"
+        
+        # Show first 5 windows as sample
+        for i, (hwnd, title) in enumerate(windows[:5], 1):
+            message += f"{i}. {title} (Handle: {hwnd})\n"
+        
+        if len(windows) > 5:
+            message += f"... and {len(windows) - 5} more windows"
+        
+        messagebox.showinfo("Automation Test", message)
+        
     except Exception as e:
-        messagebox.showerror("Error", f"Error testing automation helper:\n\n{str(e)}")
+        messagebox.showerror("Error", f"Error testing automation:\n\n{str(e)}")
+
+def run_notepad_automation():
+    """Run the Notepad automation script"""
+    try:
+        import subprocess
+        import os
+        
+        # Get the path to the notepad automation script
+        script_path = os.path.join(os.path.dirname(__file__), "automation", "notepad", "notepad.py")
+        
+        if os.path.exists(script_path):
+            print("🚀 Running Notepad automation...")
+            # Run the script in a separate process
+            subprocess.Popen([sys.executable, script_path], 
+                           cwd=os.path.dirname(__file__))
+            # messagebox.showinfo("Automation Started", "Notepad automation script has been launched!")
+        else:
+            messagebox.showerror("Error", f"Notepad automation script not found at:\n{script_path}")
+            
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to run Notepad automation:\n\n{str(e)}")
+
+def run_btt_automation():
+    """Run the BTT (Brand Test Tool) automation script"""
+    try:
+        import subprocess
+        import os
+        
+        # Get the path to the BTT automation script
+        script_path = os.path.join(os.path.dirname(__file__), "automation", "btt", "btt.py")
+        
+        if os.path.exists(script_path):
+            print("🚀 Running BTT automation...")
+            # Run the script in a separate process
+            subprocess.Popen([sys.executable, script_path], 
+                           cwd=os.path.dirname(__file__))
+            # messagebox.showinfo("Automation Started", "BTT automation script has been launched!")
+        else:
+            messagebox.showerror("Error", f"BTT automation script not found at:\n{script_path}")
+            
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to run BTT automation:\n\n{str(e)}")
 
 def record_sequence():
     """Handle the Record Sequence button click"""
@@ -615,7 +591,7 @@ def get_suggested_sequence_name():
 
 def on_closing():
     """Handle window closing - called by both X button and Ctrl+C"""
-    global automation_helper, recorder, root
+    global recorder, root
     
     # Prevent double-destroy
     if not root or not root.winfo_exists():
@@ -628,11 +604,6 @@ def on_closing():
         if 'recorder' in globals() and recorder and recorder.recording:
             print("   • Stopping active recording...")
             recorder.stop_recording()
-        
-        # Clean up automation helper
-        if automation_helper:
-            print("   • Cleaning up automation helper...")
-            automation_helper = None
         
         print("✅ Graceful shutdown completed successfully!")
         
@@ -737,9 +708,6 @@ def main():
     # Configure root background
     root.configure(bg='#2C3E50')
     
-    # Initialize automation helper after window is created
-    initialize_automation_helper()
-    
     # Create main horizontal frame for all controls
     main_frame = tk.Frame(root, bg='#2C3E50', height=taskbar_height)
     main_frame.pack(fill=tk.BOTH, expand=True)
@@ -822,6 +790,27 @@ def main():
     )
     search_window_button.pack(side=tk.LEFT, padx=2)
     
+    # Automation buttons
+    notepad_button = tk.Button(
+        buttons_frame,
+        text="Notepad Test",
+        command=run_notepad_automation,
+        bg="#16A085",
+        width=12,
+        **button_style
+    )
+    notepad_button.pack(side=tk.LEFT, padx=2)
+    
+    btt_button = tk.Button(
+        buttons_frame,
+        text="BTT",
+        command=run_btt_automation,
+        bg="#D35400",
+        width=8,
+        **button_style
+    )
+    btt_button.pack(side=tk.LEFT, padx=2)
+    
     # Right section: Status and Exit
     right_frame = tk.Frame(main_frame, bg='#2C3E50')
     right_frame.pack(side=tk.RIGHT, padx=10, pady=5)
@@ -868,6 +857,8 @@ def main():
         (record_button, "#E67E22", "#F39C12"),
         (test_automation_button, "#3498DB", "#5DADE2"),
         (search_window_button, "#9B59B6", "#AF7AC5"),
+        (notepad_button, "#16A085", "#1ABC9C"),
+        (btt_button, "#D35400", "#E67E22"),
         (exit_button, "#E74C3C", "#EC7063")
     ]
     
