@@ -13,3 +13,7 @@ from .sequence_player import (
     SequencePlayer, play_sequence, play_sequence_async, play_sequence_with_delay,
     list_available_sequences, sequence_exists
 )
+from .graphics import (
+    visualize_image_search, draw_search_region, draw_found_locations,
+    clear_all_overlays, hide_overlays, show_overlays, destroy_overlays
+)
