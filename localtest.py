@@ -8,7 +8,7 @@ load_dotenv()
 
 # Debug visualization flag - set to True to see search regions and found locations
 DEBUG_VISUALIZATION = False
-LOCAL_DEV = os.getenv("LOCAL_DEV", "") is not None
+LOCAL_DEV = os.getenv("LOCAL_DEV", "False") == "True"
 
 
 def collapse_tree_items(automation_helper=None):
