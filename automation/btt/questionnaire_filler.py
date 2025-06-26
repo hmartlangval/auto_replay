@@ -1,5 +1,6 @@
 import time
 import re
+from automation.btt.forms import BaseQuestionnaireForms, DefaultQuestionnaireForms
 from utils.image_scanner import scan_for_image
 
 
@@ -22,14 +23,39 @@ class QuestionnaireFiller:
     Example sequence: "__0.2,tab,tab,Fiserv,tab,space,(img:oda-screen.png,tab)"
     """
     
-    def __init__(self, automation_helper):
+    def __init__(self, automation_helper, forms_class=None):
         """
-        Initialize the questionnaire filler with an automation helper.
+        Initialize the questionnaire filler with an automation helper and forms class.
         
         Args:
             automation_helper: ManualAutomationHelper instance for window automation
+            forms_class: Class that inherits from BaseQuestionnaireForms to handle form interactions.
+                        If None, uses DefaultQuestionnaireForms.
         """
         self.automation_helper = automation_helper
+        
+        # Use provided forms class or default
+        if forms_class is None:
+            forms_class = DefaultQuestionnaireForms
+        
+        # Validate that the forms class inherits from BaseQuestionnaireForms
+        if not issubclass(forms_class, BaseQuestionnaireForms):
+            raise ValueError(f"forms_class must inherit from BaseQuestionnaireForms, got {forms_class}")
+        
+        # Instantiate the forms class
+        self.questionnaire_forms = forms_class(self.automation_helper, self)
+    
+    def execute(self, steps_text=None):
+        """
+        Execute the questionnaire forms using the defined execution steps.
+        
+        Args:
+            steps_text (str): Optional custom steps text. If None, uses forms' execution_steps
+            
+        Returns:
+            bool: True if all steps completed successfully
+        """
+        return self.questionnaire_forms.execute(steps_text)
         
     def parse_and_execute_sequence(self, sequence_text):
         """
@@ -216,4 +242,6 @@ class QuestionnaireFiller:
             
         except Exception as e:
             print(f"❌ Error executing multi-tab sequence: {e}")
-            return False 
+            return False
+        
+    

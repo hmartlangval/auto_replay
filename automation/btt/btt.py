@@ -16,6 +16,7 @@ from utils.image_scanner import scan_for_all_occurrences, scan_for_image
 from utils.graphics import ScreenOverlay, visualize_image_search
 from helpers import select_countries, start_questionnaire
 from questionnaire_filler import QuestionnaireFiller
+from forms import DefaultQuestionnaireForms, CustomQuestionnaireForms
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -296,77 +297,71 @@ class BrandTestToolAutomation:
         
         return project_setup_window_handle
     
-    def fill_questionnaire(self, edit_window):
-        """Fill the questionnaire using the QuestionnaireFiller class"""
+    def fill_questionnaire(self, edit_window, forms_class=None):
+        """
+        Fill the questionnaire using the QuestionnaireFiller class
         
-        # Initialize the questionnaire filler
-        qf = QuestionnaireFiller(edit_window)
+        Args:
+            edit_window: The window to perform automation on
+            forms_class: Optional forms class to use. If None, uses DefaultQuestionnaireForms
+        """
+        
+        # Initialize the questionnaire filler with specified forms class
+        qf = QuestionnaireFiller(edit_window, forms_class=forms_class)
+        forms = qf.questionnaire_forms
         
         # Start filling questionnaires
         
-        # selecting countries (special handling required)
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab"):
-            return False
-        if not select_countries(edit_window, ["Algeria"]):
-            print("❌ Failed to select countries")
-            return False
-        if not qf.parse_and_execute_sequence("tab,tab,space"):
+        # Step 1: Select countries
+        if not forms.country(["United States"]):
             return False
         
-        # acquire processor name - single text input
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,Fiserv,tab,space"):
+        # Step 2: Processor name
+        if not forms.processor_name("Fiserv"):
             return False
         
-        print('completed test 1')
-        exit()
-        
-        # user/tester information - 2 text inputs, one name and one email
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,Tester,tab,tab,Tester@thoughtfocus.com,tab,space"):
+        # Step 3: User/tester information
+        if not forms.user_tester_information("Tester", "Tester@thoughtfocus.com"):
             return False
         
-        # Testing details - two checkboxes and an extra button for more information
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{space},tab,{space},tab,tab,space"):
+        # Step 4: Testing details
+        if not forms.testing_details(check_first=True, check_second=True):
             return False
         
-        # deployment type - dropdown input, down arrow to select the item
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{down},__0.2,tab,space"):
+        # Step 5: Deployment type
+        if not forms.deployment_type(use_dropdown=True):
             return False
         
-        # Merchant Information with optional field of 1 text input
-        if not qf.parse_and_execute_sequence("tab,tab,tab,space"):
+        # Step 6: Merchant information
+        if not forms.merchant_information(skip_optional=True):
             return False
         
-        # terminal ATM/Information - 3 text inputs and an extra button after each input
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,terminal name,tab,tab,tab,model name,tab,tab,tab,version info,tab,tab,space"):
+        # Step 7: Terminal ATM information
+        if not forms.terminal_atm_information("terminal name", "model name", "version info"):
             return False
        
-        # Contactless ATM Information - 2 text inputs, one extra button after each input
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,ATM1,tab,tab,ATM2,tab,space"):
+        # Step 8: Contactless ATM information
+        if not forms.contactless_atm_information("ATM1", "ATM2"):
             return False
         
-        # Contact chip offline data authentication (ODA) - radio input with conditional button
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{space},{down},(img:oda-screen.png,tab),tab,space"):
+        # Step 9: Contact chip ODA
+        if not forms.contact_chip_oda(select_first=True, select_second=True):
             return False
         
-        # Contact Only features - 2 sets of radio inputs
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{space},tab,tab,{space},tab,space"):
+        # Step 10: Contact only features
+        if not forms.contact_only_features(select_first_set=True, select_second_set=True):
             return False
         
-        # Comment box - single text input
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,some comment,tab,space"):
+        # Step 11: Comment box
+        if not forms.comment_box("some comment"):
             return False
         
-        # Final information screen - confirm button (special handling required)
-        time.sleep(0.2)
-        confirm_information_button_location = scan_for_image("confirm-information-button.png", edit_window.get_bbox(), threshold=0.8)
-        if confirm_information_button_location:
-            edit_window.click(confirm_information_button_location)
-        else:
-            print("❌ No confirm information button found")
+        # Step 12: Confirm final information
+        if not forms.confirm_final_information():
             return False
         
-        # Test Session Name - single text input
-        if not qf.parse_and_execute_sequence("__0.2,tab,tab,some test session name,tab,space"):
+        # Step 13: Test session name
+        if not forms.test_session_name("some test session name"):
             return False
         
         # Final step - with all successful, we have a screen where OK button is auto highlighted
@@ -403,7 +398,16 @@ class BrandTestToolAutomation:
         project_setup_window_handle.keys("{space}")
         time.sleep(1) # gives time for the right panel to get populated
         
+        # Option 1: Use default forms with manual method calls
         self.fill_questionnaire(project_setup_window_handle)
+        
+        # Option 2: Use declarative execution (uncomment to use)
+        # qf = QuestionnaireFiller(project_setup_window_handle)
+        # qf.execute()  # Uses default execution steps
+        
+        # Option 3: Use custom forms with declarative execution (uncomment to use)
+        # qf_custom = QuestionnaireFiller(project_setup_window_handle, forms_class=CustomQuestionnaireForms)
+        # qf_custom.execute()  # Uses custom execution steps
         # ewindow = ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire", title_starts_with=True)
         # time.sleep(1)
         # self.send_tabs(ewindow, 2)
@@ -467,7 +471,11 @@ if __name__ == "__main__":
         print("❌ No edit window found")
         exit()
     
+    # Option 1: Use default forms
     btt_automation.fill_questionnaire(edit_window)
+    
+    # Option 2: Use custom forms (uncomment to use)
+    # btt_automation.fill_questionnaire(edit_window, forms_class=CustomQuestionnaireForms)
     
     # Option 1: Execute all steps at once
     # btt_automation.execute_all_steps()
