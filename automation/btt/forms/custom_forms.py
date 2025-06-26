@@ -3,8 +3,20 @@ Custom questionnaire forms example.
 Shows how to inherit from BaseQuestionnaireForms and override specific methods.
 """
 
+import sys
+import os
+
+# Add paths to allow imports when running directly  
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+
 from .base_forms import BaseQuestionnaireForms
-from automation.btt.helpers import select_countries
+
+# Try relative import first, then absolute
+try:
+    from ..helpers import select_countries
+except ImportError:
+    from helpers import select_countries
 
 
 class CustomQuestionnaireForms(BaseQuestionnaireForms):

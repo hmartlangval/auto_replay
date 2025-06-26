@@ -7,6 +7,13 @@ This demonstrates the flexibility of the forms system:
 3. Custom execution steps from files or strings
 """
 
+import sys
+import os
+
+# Add parent directories to path to allow imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(os.path.dirname(__file__))
+
 from questionnaire_filler import QuestionnaireFiller
 from forms import DefaultQuestionnaireForms, CustomQuestionnaireForms
 from utils import ManualAutomationHelper
@@ -113,6 +120,10 @@ comment_box: Loaded from file
 confirm_final_information:
 test_session_name: File-based Test Session
 """
+    custom_steps = """
+# File-based execution steps
+country: Algeria, Morocco
+"""
     
     edit_window = ManualAutomationHelper(target_window_title="Test Window")
     if not edit_window:
@@ -156,13 +167,13 @@ if __name__ == "__main__":
     print("=" * 50)
     print()
     
-    show_execution_steps_examples()
+    # show_execution_steps_examples()
     
     # Run demos (commented out since they need actual window)
     # demo_manual_approach()
     # demo_declarative_approach() 
     # demo_custom_declarative_approach()
-    # demo_file_based_execution()
+    demo_file_based_execution()
     
     print("💡 Summary:")
     print("1. Manual: Maximum flexibility, step-by-step control")

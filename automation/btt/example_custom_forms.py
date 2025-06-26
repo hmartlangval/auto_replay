@@ -3,6 +3,13 @@ Example demonstrating how to create custom questionnaire forms by inheriting fro
 This shows the inheritance design pattern in action.
 """
 
+import sys
+import os
+
+# Add parent directories to path to allow imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(os.path.dirname(__file__))
+
 from forms import BaseQuestionnaireForms
 from questionnaire_filler import QuestionnaireFiller
 

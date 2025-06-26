@@ -4,8 +4,27 @@ Contains all standard form methods that can be inherited and customized by child
 """
 
 import time
-from automation.btt.helpers import select_countries
-from utils.image_scanner import scan_for_image
+import sys
+import os
+
+# Add paths to allow imports when running directly
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+
+# Try relative import first, then absolute
+try:
+    from ..helpers import select_countries
+except ImportError:
+    from helpers import select_countries
+
+# Make image scanner import optional
+try:
+    from utils.image_scanner import scan_for_image
+except ImportError:
+    print("⚠️ Warning: image_scanner not available (missing cv2 dependency)")
+    def scan_for_image(*args, **kwargs):
+        print("❌ scan_for_image not available - install opencv-python")
+        return None
 
 
 class BaseQuestionnaireForms:

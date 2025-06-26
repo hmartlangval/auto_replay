@@ -1,6 +1,6 @@
 import time
 import re
-from automation.btt.forms import BaseQuestionnaireForms, DefaultQuestionnaireForms
+from forms import BaseQuestionnaireForms, DefaultQuestionnaireForms
 from utils.image_scanner import scan_for_image
 
 
