@@ -29,6 +29,7 @@ class TreeViewNavigator:
         Initialize the navigator for a specific window containing a treeview.
         
         Args:
+            automation_helper: Pre-initialized automation helper
             window_title: Title of the window containing the treeview
             collapse_count: Number of left arrows needed to collapse a node (default: 1)
         """
@@ -36,6 +37,7 @@ class TreeViewNavigator:
         self.current_path = "1"  # Root is now level 1
         self.collapse_count = collapse_count  # How many left arrows for collapse
         self.path_computer = TreeviewPathComputer()
+        self.first_navigation = True  # Flag to track if this is the first navigation
         
         if automation_helper is None and window_title:
             self.connect_to_window(window_title)
@@ -134,18 +136,42 @@ class TreeViewNavigator:
             time.sleep(0.3)
             
             # Execute key sequence, handling collapse_count for Left keys
-            for key in key_sequence:
-                if key == "Left":
-                    # Send multiple left arrows if needed for collapse
-                    for i in range(self.collapse_count):
-                        if not self.send_key("Left"):
+            for i, key in enumerate(key_sequence):
+                # For the very first key press, use UI change detection
+                if self.first_navigation and i == 0:
+                    print(f"🎯 First navigation - using UI change detection for '{key}'")
+                    if key == "Left":
+                        # Send multiple left arrows if needed for collapse
+                        for j in range(self.collapse_count):
+                            if j == 0:
+                                # Use UI change detection for the first left arrow
+                                if not self.automation.send_key_with_ui_wait("{Left}"):
+                                    return False
+                            else:
+                                if not self.send_key("Left"):
+                                    return False
+                            # Small delay between multiple left arrows
+                            if j < self.collapse_count - 1:
+                                time.sleep(0.2)
+                    else:
+                        # Map key to proper format for automation helper
+                        formatted_key = f"{{{key}}}"
+                        if not self.automation.send_key_with_ui_wait(formatted_key):
                             return False
-                        # Small delay between multiple left arrows
-                        if i < self.collapse_count - 1:
-                            time.sleep(0.2)
+                    self.first_navigation = False  # Reset flag after first key
                 else:
-                    if not self.send_key(key):
-                        return False
+                    # Regular key handling for subsequent keys
+                    if key == "Left":
+                        # Send multiple left arrows if needed for collapse
+                        for j in range(self.collapse_count):
+                            if not self.send_key("Left"):
+                                return False
+                            # Small delay between multiple left arrows
+                            if j < self.collapse_count - 1:
+                                time.sleep(0.2)
+                    else:
+                        if not self.send_key(key):
+                            return False
             
             # Update current path on success
             self.current_path = target_path

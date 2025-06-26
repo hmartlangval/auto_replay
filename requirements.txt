@@ -5,3 +5,4 @@ numpy>=1.21.0
 pywin32>=305
 pyinstaller>=6.10.0
 python-dotenv>=1.0.0
+Pillow>=8.0.0

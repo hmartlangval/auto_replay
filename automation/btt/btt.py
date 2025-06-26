@@ -31,8 +31,83 @@ class BrandTestToolAutomation:
         self.automation_helper = ManualAutomationHelper(target_window_title=self.window_title)
         self.window_handle = self.automation_helper.hwnd
         self.window_info = self.automation_helper.get_window_info()
-        self.graphics = ScreenOverlay(click_through=True)
-   
+        self.graphics = ScreenOverlay()
+
+    def _show_debug_visualization(self, search_region, found_locations=None, target_location=None, duration=3):
+        """Show clean debug visualization using a temporary transparent window"""
+        if not DEBUG_VISUALIZATION:
+            return
+            
+        import tkinter as tk
+        import threading
+        import time as time_module
+        
+        def create_and_show():
+            # Create a temporary transparent window
+            root = tk.Tk()
+            root.withdraw()  # Hide initially
+            
+            # Make it fullscreen and completely transparent
+            root.attributes('-fullscreen', True)
+            root.attributes('-topmost', True)
+            root.attributes('-alpha', 1.0)  # Fully opaque for the shapes
+            root.overrideredirect(True)
+            
+            # Make the window background transparent
+            try:
+                root.wm_attributes('-transparentcolor', 'black')
+            except:
+                pass
+            
+            # Create transparent canvas with black background (which becomes transparent)
+            canvas = tk.Canvas(root, bg='black', highlightthickness=0)
+            canvas.pack(fill=tk.BOTH, expand=True)
+            
+            # Draw search region rectangle (green)
+            canvas.create_rectangle(
+                search_region[0], search_region[1], search_region[2], search_region[3],
+                outline='#00FF00', width=3, fill=''
+            )
+            
+            # Draw found locations (red circles)
+            if found_locations:
+                for x, y in found_locations:
+                    canvas.create_oval(
+                        x-15, y-15, x+15, y+15,
+                        outline='#FF0000', width=3, fill=''
+                    )
+            
+            # Draw target location (yellow circle, larger)
+            if target_location:
+                x, y = target_location
+                canvas.create_oval(
+                    x-25, y-25, x+25, y+25,
+                    outline='#FFFF00', width=5, fill=''
+                )
+            
+            # Show the window
+            root.deiconify()
+            root.update()
+            
+            # Auto-hide after duration
+            def cleanup():
+                time_module.sleep(duration)
+                try:
+                    root.destroy()
+                except:
+                    pass
+            
+            threading.Thread(target=cleanup, daemon=True).start()
+            
+            # Start the window's event loop in this thread
+            try:
+                root.mainloop()
+            except:
+                pass
+        
+        # Run in separate thread to avoid blocking
+        threading.Thread(target=create_and_show, daemon=True).start()
+
     def send_navigation_keys(self, navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
         """Send navigation keys using the navigation parser"""
         try:
@@ -109,22 +184,16 @@ class BrandTestToolAutomation:
         print(f"📐 Window bbox: {bbox}")
         print(f"🔍 Search region (top-left 30%): {search_region}")
         
-        # self.graphics.draw_rectangle(search_region[0], search_region[1], search_region[2], search_region[3], color="#00FF00", width=3, label="Search Region")
-        
-        max_iterations = 5  # Safety limit to prevent infinite loops
+        max_iterations = 3  # Maximum consecutive failed attempts
         iteration = 0
         
         while iteration < max_iterations:
-            iteration += 1
-            print(f"\n🔄 Iteration {iteration}: Searching for expanded tree items...")
+            print(f"\n🔄 Iteration {iteration + 1}: Searching for expanded tree items...")
             
-            # Visualize the search region (only if debug enabled)
-            visualize_image_search(
-                search_region=search_region,
-                region_label=f"Tree Search Region (Iteration {iteration})",
-                show_duration=2.0,
-                enabled=DEBUG_VISUALIZATION
-            )
+            # Visual debug: Show search region
+            if DEBUG_VISUALIZATION:
+                print(f"🔍 Search region: {search_region}")
+                self._show_debug_visualization(search_region, duration=2)
             
             # Search for all minus-expanded.png images in the search region
             results = scan_for_all_occurrences(
@@ -134,27 +203,34 @@ class BrandTestToolAutomation:
             )
             
             if not results or len(results) == 0:
-                print("✅ No more expanded tree items found. Collapse complete!")
-                # Show final visualization with no matches
-                visualize_image_search(
-                    search_region=search_region,
-                    found_locations=[],
-                    region_label="Final Search - No Matches",
-                    show_duration=3.0,
-                    enabled=DEBUG_VISUALIZATION
-                )
-                break
+                iteration += 1  # Increment counter for failed attempt
+                print(f"❌ No expanded tree items found. Failed attempt {iteration}/{max_iterations}")
+                # Visual debug: Show final search region with no matches
+                if DEBUG_VISUALIZATION:
+                    print("🎯 No expanded items found in this iteration")
+                    self._show_debug_visualization(search_region, duration=2)
+                
+                if iteration >= max_iterations:
+                    print("✅ No more expanded tree items found after 3 consecutive attempts. Collapse complete!")
+                    break
+                continue
             
             print(f"📍 Found {len(results)} expanded tree items")
+            iteration = 0  # Reset counter when matches are found
             
-            # Show visualization with found locations
-            visualize_image_search(
-                search_region=search_region,
-                found_locations=results,
-                region_label=f"Found {len(results)} Tree Items",
-                show_duration=3.0,
-                enabled=DEBUG_VISUALIZATION
-            )
+            # Visual debug: Show complete visualization with all elements
+            if DEBUG_VISUALIZATION:
+                print(f"🎯 Found locations: {results}")
+                sorted_results = sorted(results, key=lambda x: x[1], reverse=True)
+                print(f"🎯 Will click bottommost at: {sorted_results[0] if sorted_results else 'None'}")
+                
+                target_location = sorted_results[0] if sorted_results else None
+                self._show_debug_visualization(
+                    search_region=search_region,
+                    found_locations=results,
+                    target_location=target_location,
+                    duration=3
+                )
             
             # Sort results by Y coordinate (bottom to top)
             # results format: [(x, y), ...]
@@ -165,7 +241,7 @@ class BrandTestToolAutomation:
             print(f"🖱️  Clicking bottommost expanded item at ({center_x}, {center_y})")
             
             # Ensure window is focused and try multiple click approaches
-            automation_helper.bring_to_foreground()
+            automation_helper._bring_to_focus()
             time.sleep(0.2)
             
             # Try direct click first
@@ -226,42 +302,44 @@ class BrandTestToolAutomation:
         if not self.window_handle:
             return False
      
-        # if not self.create_new_project():
-        #     return False
+        if not self.create_new_project():
+            return False
        
-        # time.sleep(1)
+        time.sleep(1)
         
         if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
         
-        print('Task completed. Exiting...')
-        exit()
+        
         
         # Now we are ready to navigate to the node we want to edit
         navigator = TreeViewNavigator(automation_helper=project_setup_window_handle, collapse_count=2)
         
         # retrieve data from pre-processed data where to navigate, assume 1.7.2
         # and then put a check on the current node by pressing space key 
+        time.sleep(1.5)
         navigator.navigate_to_path("1.7.2")
         time.sleep(0.2)
         project_setup_window_handle.keys("{space}")
         time.sleep(1) # gives time for the right panel to get populated
         
-        # Start filling questionairres
+        # Start the questionairres window
         if not (edit_emvco_l3_test_session_window := start_questionnaire(project_setup_window_handle, "Edit EMVCo L3 Test Session - Questionnaire")):
             return False
         
+      
         
         # # What we should see now is a tabbed UI and first tab is highlighted
         # # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
-        # edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
-        # if edit_answers_location:
-        #     edit_emvco_l3_test_session_window.click(edit_answers_location)
-        #     time.sleep(2)
-        # else:
-        #     print("❌ No edit answers button found")
-        #     return False
+        edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        if edit_answers_location:
+            edit_emvco_l3_test_session_window.click(edit_answers_location)
+            time.sleep(2)
+        else:
+            print("❌ No edit answers button found")
+            return False
         
+       
         # Start filling questionairres
         
         # selecting countries
@@ -380,6 +458,8 @@ class BrandTestToolAutomation:
         edit_emvco_l3_test_session_window.keys("{space}")
         
         print("🎉 All automation steps completed successfully!")
+        print('Task completed. Exiting...')
+        exit()
         return True
     
     def send_tabs(self, automation_helper, count, followed_by_space=False, followed_by_enter=False):

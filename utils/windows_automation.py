@@ -635,3 +635,65 @@ class ManualAutomationHelper:
         except Exception as e:
             print(f"Error restoring window: {e}")
             return False
+    
+    def wait_for_ui_change(self, action_func, max_wait_time: float = 3.0, check_interval: float = 0.2):
+        """
+        Execute an action and wait for UI change by monitoring window state.
+        
+        Args:
+            action_func: Function to execute that should cause UI change
+            max_wait_time: Maximum time to wait for change (seconds)
+            check_interval: How often to check for changes (seconds)
+            
+        Returns:
+            bool: True if change detected or timeout reached, False if action failed
+        """
+        try:
+            # Capture initial window state
+            initial_rect = self.get_window_rect()
+            initial_focus = win32gui.GetForegroundWindow()
+            
+            # Execute the action
+            if not action_func():
+                return False
+            
+            print(f"⏳ Waiting for UI change (max {max_wait_time}s)...")
+            start_time = time.time()
+            
+            while time.time() - start_time < max_wait_time:
+                time.sleep(check_interval)
+                
+                # Check for any window state changes
+                current_rect = self.get_window_rect()
+                current_focus = win32gui.GetForegroundWindow()
+                
+                # Simple change detection - any difference indicates UI change
+                if (current_rect != initial_rect or 
+                    current_focus != initial_focus):
+                    elapsed = time.time() - start_time
+                    print(f"✅ UI change detected after {elapsed:.1f}s")
+                    return True
+            
+            # Timeout reached - assume change occurred anyway
+            print(f"⏰ Timeout reached ({max_wait_time}s) - assuming UI change occurred")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error in wait_for_ui_change: {e}")
+            return True  # Continue anyway
+    
+    def send_key_with_ui_wait(self, key_combination, max_wait_time: float = 3.0):
+        """
+        Send a key combination and wait for UI change.
+        
+        Args:
+            key_combination: Key combination to send
+            max_wait_time: Maximum time to wait for UI change
+            
+        Returns:
+            bool: Success status
+        """
+        def send_key_action():
+            return self.keys(key_combination)
+        
+        return self.wait_for_ui_change(send_key_action, max_wait_time)
