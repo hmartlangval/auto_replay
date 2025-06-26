@@ -1,5 +1,38 @@
 import time
 
+from utils.image_scanner import scan_for_image
+from utils.windows_automation import ManualAutomationHelper
+
+def start_questionnaire(automator, window_title: str):
+    """
+    Fill a questionnaire with the given name.
+    """
+    # What we should see now is a tabbed UI and first tab is highlighted
+    # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
+    # Lets scan for image for starting button
+    if not (btn_start := scan_for_image("start-tse-test-session.png", automator.get_bbox(), threshold=0.8)):
+        print("❌ No start button found")
+        return None
+    automator.click(btn_start)
+    time.sleep(1)
+    
+    # this adds a edit button into the UI, we need to click on it
+    # we scan for the edit button image
+    if not (btn_edit := scan_for_image("edit-tse-test-session.png", automator.get_bbox(), threshold=0.8)):
+        print("❌ No edit button found")
+        return None
+    automator.click(btn_edit)
+    time.sleep(2)
+    
+    # Now we are in the Edit EMVCo L3 Test Session - Questionnaire window
+    if not (edit_window := ManualAutomationHelper(target_window_title=window_title)):
+        print(f"❌ No {window_title} window found")
+        return None
+    # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
+    edit_window.setup_window(bbox=(71, 65, 1270, 707))
+    
+    return edit_window
+
 def select_countries(automation_helper, country_list=None):
     """
     Select countries from a multi-list view using keyboard navigation.

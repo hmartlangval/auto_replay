@@ -11,8 +11,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from utils import (
     ManualAutomationHelper, NavigationParser, play_sequence, play_sequence_async
 )
+from utils.treeview.treeview_navigator import TreeViewNavigator
 from utils.image_scanner import scan_for_image
-from helpers import select_countries
+from helpers import select_countries, start_questionnaire
 
 
 class BrandTestToolAutomation:
@@ -60,27 +61,27 @@ class BrandTestToolAutomation:
             print(f"❌ Step 3 failed: {e}")
             return False
     
-    def execute_all_steps(self):
-        """Execute all steps in sequence"""
-        print(f"🚀 Starting {self.window_title} automation...")
+    def create_new_project(self):
+        """Create a new project"""
+        print("🚀 Starting {self.window_title} automation...")
         
-        if not self.window_handle:
+        # Send navigation keys to create project
+        if not self.send_navigation_keys(navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
             return False
-     
-        # # Send navigation keys to create project
-        # if not self.send_navigation_keys(navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
-        #     return False
         
-        # time.sleep(0.5)
+        time.sleep(0.5)
         
-        # # Run sequence to fill in project name and description
-        # print("🎬 Running sequence to fill project details...")
-        # success = play_sequence("fill_project_details", blocking=True)
-        # if not success:
-        #     print("❌ Failed to run sequence")
-        #     return False
+        # Run sequence to fill in project name and description
+        print("🎬 Running sequence to fill project details...")
+        success = play_sequence("fill_project_details", blocking=True)
+        if not success:
+            print("❌ Failed to run sequence")
+            return False
         
-        time.sleep(1)
+        return True
+    
+    def prepare_project_setup_window(self):
+        """Identify the project setup window. Then ready the treeview for navigation"""
         # Now the Project Settings Window is open
         # Search for a new window
         project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
@@ -92,69 +93,66 @@ class BrandTestToolAutomation:
         # # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
         project_setup_window_handle.setup_window(bbox=(100, 100, 1050, 646))
         
-        
         # GOAL: To collapse all tree items from bottom up, so we are guaranteed how the UI looks like
         # use the image search to search for all image in the setup window handle bounding box, the top left 30% of the bounding box only.
         # any images minus-expanded.png found should be clicked from bottom up one at a time, until none is found.
+        # bbox = project_setup_window_handle.get_bbox()
+        # left, top, right, bottom = bbox
+        # search_width = int((right - left) * 0.3)  # 30% of width
+        # search_height = int((bottom - top))  # 50% of height
+        # search_region = (left, top, left + search_width, top + search_height)
+        # collapse_treeview(project_setup_window_handle)
+        # Assume at this point that the tree is fully collapsed to the very first root level
+        # and that it is currently getting focussed
         
         
-        # GOAL: Expand the first parent node.
-        # Now that all of them is collapsed, we know exactly where the tree items are
-        # click on the first plus icon "plus-collapsed.png", so the first parent node expanded.
+        return project_setup_window_handle
+    
+    def execute_all_steps(self):
+        """Execute all steps in sequence"""
+        print(f"🚀 Starting {self.window_title} automation...")
         
-        
-        # Now that the first parent is expanded, we know exactly the sequence for each child to play
-        # we make decisions which sequence to play depending on business logics.
-        # each child node has a sequence associated to it, so we implement this later
-        
-        
-        # Lets scan for image for starting button
-        start_button_location = scan_for_image("start-tse-test-session.png", project_setup_window_handle.get_bbox(), threshold=0.8)
-        if start_button_location:
-            project_setup_window_handle.click(start_button_location)
-            time.sleep(0.5)
-        else:
-            print("❌ No start button found")
+        if not self.window_handle:
             return False
-        
-        # this adds a edit button into the UI, we need to click on it
-        # we scan for the edit button image
-        edit_button_location = scan_for_image("edit-tse-test-session.png", project_setup_window_handle.get_bbox(), threshold=0.8)
-        if edit_button_location:
-            project_setup_window_handle.click(edit_button_location)
-            time.sleep(2)
-        else:
-            print("❌ No edit button found")
+     
+        if not self.create_new_project():
             return False
-        
-
-        # Now we are in the Edit EMVCo L3 Test Session - Questionnaire window
-        edit_emvco_l3_test_session_window = ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")
-        print(f"✅ Found Project Setup window: {edit_emvco_l3_test_session_window.hwnd}")
-        if not edit_emvco_l3_test_session_window.hwnd:
-            print("❌ No Project Setup window found")
-            return False
-        
-        # Reposition the window to the desired location such that we can play sequences as recorded and coordinates will not be messed up
-        # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
-        edit_emvco_l3_test_session_window.setup_window(bbox=(71, 65, 1270, 707))
-        
-        
        
-        # What we should see now is a tabbed UI and first tab is highlighted
-        # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
-        edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
-        if edit_answers_location:
-            edit_emvco_l3_test_session_window.click(edit_answers_location)
-            time.sleep(2)
-        else:
-            print("❌ No edit answers button found")
+        time.sleep(1)
+        
+        if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
+        
+        # Now we are ready to navigate to the node we want to edit
+        navigator = TreeViewNavigator(automation_helper=project_setup_window_handle, collapse_count=2)
+        
+        # retrieve data from pre-processed data where to navigate, assume 1.7.2
+        # and then put a check on the current node by pressing space key 
+        navigator.navigate_to_path("1.7.2")
+        time.sleep(0.2)
+        project_setup_window_handle.keys("{space}")
+        time.sleep(1) # gives time for the right panel to get populated
+        
+        # Start filling questionairres
+        if not (edit_emvco_l3_test_session_window := start_questionnaire(project_setup_window_handle, "Edit EMVCo L3 Test Session - Questionnaire")):
+            return False
+        
+        
+        # # What we should see now is a tabbed UI and first tab is highlighted
+        # # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
+        # edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
+        # if edit_answers_location:
+        #     edit_emvco_l3_test_session_window.click(edit_answers_location)
+        #     time.sleep(2)
+        # else:
+        #     print("❌ No edit answers button found")
+        #     return False
         
         # Start filling questionairres
         
         # selecting countries
         # this one has a multiple select list, space to select, up/down to navigate
+        time.sleep(1)
         self.send_tabs(edit_emvco_l3_test_session_window, 2)
         if not select_countries(edit_emvco_l3_test_session_window, ["Algeria"]):
             print("❌ Failed to select countries")
