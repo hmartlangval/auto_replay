@@ -12,9 +12,14 @@ from utils import (
     ManualAutomationHelper, NavigationParser, play_sequence, play_sequence_async
 )
 from utils.treeview.treeview_navigator import TreeViewNavigator
-from utils.image_scanner import scan_for_image
+from utils.image_scanner import scan_for_all_occurrences, scan_for_image
+from utils.graphics import ScreenOverlay, visualize_image_search
 from helpers import select_countries, start_questionnaire
 
+from dotenv import load_dotenv
+load_dotenv()
+LOCAL_DEV = os.getenv("LOCAL_DEV", "False") == "True"
+DEBUG_VISUALIZATION = True
 
 class BrandTestToolAutomation:
     """Automation class for Brand Test Tool with modular step control"""
@@ -26,6 +31,7 @@ class BrandTestToolAutomation:
         self.automation_helper = ManualAutomationHelper(target_window_title=self.window_title)
         self.window_handle = self.automation_helper.hwnd
         self.window_info = self.automation_helper.get_window_info()
+        self.graphics = ScreenOverlay()
    
     def send_navigation_keys(self, navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
         """Send navigation keys using the navigation parser"""
@@ -79,7 +85,112 @@ class BrandTestToolAutomation:
             return False
         
         return True
-    
+    def collapse_tree_items(self,automation_helper=None):
+        """
+        Collapse all tree items by clicking minus-expanded.png images from bottom to top.
+        Searches only in the top-left 30% of the window's bounding box.
+        """
+        
+        if automation_helper is None and not LOCAL_DEV:
+            raise ValueError("automation_helper is required when not in local development mode")
+        
+        # Get the window's bounding box
+        if LOCAL_DEV:
+            bbox = (100, 100, 1050, 646)
+        else:
+            bbox = automation_helper.get_bbox()
+        left, top, right, bottom = bbox
+        
+        # Calculate the top-left 30% region
+        search_width = int((right - left) * 0.3)  # 30% of width
+        search_height = int((bottom - top) * 0.5)  # 50% of height
+        search_region = (left, top, left + search_width, top + search_height)
+        
+        print(f"📐 Window bbox: {bbox}")
+        print(f"🔍 Search region (top-left 30%): {search_region}")
+        
+        self.graphics.draw_rectangle(search_region[0], search_region[1], search_region[2], search_region[3], color="#00FF00", width=3, label="Search Region")
+        
+        max_iterations = 20  # Safety limit to prevent infinite loops
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            print(f"\n🔄 Iteration {iteration}: Searching for expanded tree items...")
+            
+            # Visualize the search region (only if debug enabled)
+            visualize_image_search(
+                search_region=search_region,
+                region_label=f"Tree Search Region (Iteration {iteration})",
+                show_duration=2.0,
+                enabled=DEBUG_VISUALIZATION
+            )
+            
+            # Search for all minus-expanded.png images in the search region
+            results = scan_for_all_occurrences(
+                image_name="minus-expanded.png",
+                bounding_box=search_region,
+                threshold=0.8
+            )
+            
+            if not results or len(results) == 0:
+                print("✅ No more expanded tree items found. Collapse complete!")
+                # Show final visualization with no matches
+                visualize_image_search(
+                    search_region=search_region,
+                    found_locations=[],
+                    region_label="Final Search - No Matches",
+                    show_duration=3.0,
+                    enabled=DEBUG_VISUALIZATION
+                )
+                break
+            
+            print(f"📍 Found {len(results)} expanded tree items")
+            
+            # Show visualization with found locations
+            visualize_image_search(
+                search_region=search_region,
+                found_locations=results,
+                region_label=f"Found {len(results)} Tree Items",
+                show_duration=3.0,
+                enabled=DEBUG_VISUALIZATION
+            )
+            
+            # Sort results by Y coordinate (bottom to top)
+            # results format: [(x, y), ...]
+            sorted_results = sorted(results, key=lambda x: x[1], reverse=True)
+            
+            # Click the bottommost expanded item
+            center_x, center_y = sorted_results[0]
+            print(f"🖱️  Clicking bottommost expanded item at ({center_x}, {center_y})")
+            
+            # Click the minus icon to collapse
+            success = automation_helper.click((center_x, center_y))
+            if not success:
+                print(f"❌ Failed to click at ({center_x}, {center_y})")
+                break
+            
+            # Wait for the UI to update
+            time.sleep(0.5)
+            
+            # Optional: Verify the click worked by checking if the item is still there
+            # This helps ensure we're making progress
+            verification_results = scan_for_all_occurrences(
+                image_name="minus-expanded.png",
+                bounding_box=search_region,
+                threshold=0.8
+            )
+            
+            if verification_results and len(verification_results) >= len(results):
+                print("⚠️  Warning: No change detected after click, continuing anyway...")
+            else:
+                print(f"✅ Progress made: {len(results)} → {len(verification_results) if verification_results else 0} expanded items")
+        
+        if iteration >= max_iterations:
+            print(f"⚠️  Reached maximum iterations ({max_iterations}). Stopping to prevent infinite loop.")
+        
+        print("🎉 Tree collapse process completed!")
+
     def prepare_project_setup_window(self):
         """Identify the project setup window. Then ready the treeview for navigation"""
         # Now the Project Settings Window is open
@@ -96,12 +207,12 @@ class BrandTestToolAutomation:
         # GOAL: To collapse all tree items from bottom up, so we are guaranteed how the UI looks like
         # use the image search to search for all image in the setup window handle bounding box, the top left 30% of the bounding box only.
         # any images minus-expanded.png found should be clicked from bottom up one at a time, until none is found.
-        # bbox = project_setup_window_handle.get_bbox()
-        # left, top, right, bottom = bbox
-        # search_width = int((right - left) * 0.3)  # 30% of width
-        # search_height = int((bottom - top))  # 50% of height
-        # search_region = (left, top, left + search_width, top + search_height)
-        # collapse_treeview(project_setup_window_handle)
+        bbox = project_setup_window_handle.get_bbox()
+        left, top, right, bottom = bbox
+        search_width = int((right - left) * 0.3)  # 30% of width
+        search_height = int((bottom - top))  # 50% of height
+        search_region = (left, top, left + search_width, top + search_height)
+        self.collapse_tree_items(project_setup_window_handle)
         # Assume at this point that the tree is fully collapsed to the very first root level
         # and that it is currently getting focussed
         
@@ -115,10 +226,10 @@ class BrandTestToolAutomation:
         if not self.window_handle:
             return False
      
-        if not self.create_new_project():
-            return False
+        # if not self.create_new_project():
+        #     return False
        
-        time.sleep(1)
+        # time.sleep(1)
         
         if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
