@@ -31,6 +31,20 @@ def start_questionnaire(automator, window_title: str):
     # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
     edit_window.setup_window(bbox=(71, 65, 1270, 707))
     
+     # Start the questionairres window
+    # if not (edit_emvco_l3_test_session_window := start_questionnaire(current_parent_window, "Edit EMVCo L3 Test Session - Questionnaire")):
+    #     return False
+    
+    # # What we should see now is a tabbed UI and first tab is highlighted
+    # # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
+    edit_answers_tab = scan_for_image("edit-answers.png", edit_window.get_bbox(), threshold=0.8)
+    if edit_answers_tab:
+        edit_window.click(edit_answers_tab)
+        time.sleep(2)
+    else:
+        print("❌ No edit answers button found")
+        return False
+    
     return edit_window
 
 def select_countries(automation_helper, country_list=None):

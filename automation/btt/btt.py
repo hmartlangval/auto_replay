@@ -15,6 +15,7 @@ from utils.treeview.treeview_navigator import TreeViewNavigator
 from utils.image_scanner import scan_for_all_occurrences, scan_for_image
 from utils.graphics import ScreenOverlay, visualize_image_search
 from helpers import select_countries, start_questionnaire
+from questionnaire_filler import QuestionnaireFiller
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -295,6 +296,87 @@ class BrandTestToolAutomation:
         
         return project_setup_window_handle
     
+    def fill_questionnaire(self, edit_window):
+        """Fill the questionnaire using the QuestionnaireFiller class"""
+        
+        # Initialize the questionnaire filler
+        qf = QuestionnaireFiller(edit_window)
+        
+        # Start filling questionnaires
+        
+        # selecting countries (special handling required)
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab"):
+            return False
+        if not select_countries(edit_window, ["Algeria"]):
+            print("❌ Failed to select countries")
+            return False
+        if not qf.parse_and_execute_sequence("tab,tab,space"):
+            return False
+        
+        # acquire processor name - single text input
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,Fiserv,tab,space"):
+            return False
+        
+        print('completed test 1')
+        exit()
+        
+        # user/tester information - 2 text inputs, one name and one email
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,Tester,tab,tab,Tester@thoughtfocus.com,tab,space"):
+            return False
+        
+        # Testing details - two checkboxes and an extra button for more information
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{space},tab,{space},tab,tab,space"):
+            return False
+        
+        # deployment type - dropdown input, down arrow to select the item
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{down},__0.2,tab,space"):
+            return False
+        
+        # Merchant Information with optional field of 1 text input
+        if not qf.parse_and_execute_sequence("tab,tab,tab,space"):
+            return False
+        
+        # terminal ATM/Information - 3 text inputs and an extra button after each input
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,terminal name,tab,tab,tab,model name,tab,tab,tab,version info,tab,tab,space"):
+            return False
+       
+        # Contactless ATM Information - 2 text inputs, one extra button after each input
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,ATM1,tab,tab,ATM2,tab,space"):
+            return False
+        
+        # Contact chip offline data authentication (ODA) - radio input with conditional button
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{space},{down},(img:oda-screen.png,tab),tab,space"):
+            return False
+        
+        # Contact Only features - 2 sets of radio inputs
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,{space},tab,tab,{space},tab,space"):
+            return False
+        
+        # Comment box - single text input
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,some comment,tab,space"):
+            return False
+        
+        # Final information screen - confirm button (special handling required)
+        time.sleep(0.2)
+        confirm_information_button_location = scan_for_image("confirm-information-button.png", edit_window.get_bbox(), threshold=0.8)
+        if confirm_information_button_location:
+            edit_window.click(confirm_information_button_location)
+        else:
+            print("❌ No confirm information button found")
+            return False
+        
+        # Test Session Name - single text input
+        if not qf.parse_and_execute_sequence("__0.2,tab,tab,some test session name,tab,space"):
+            return False
+        
+        # Final step - with all successful, we have a screen where OK button is auto highlighted
+        time.sleep(3)
+        edit_window.keys("{space}")
+        
+        print("🎉 All automation steps completed successfully!")
+        print('Task completed. Exiting...')
+        exit()
+    
     def execute_all_steps(self):
         """Execute all steps in sequence"""
         print(f"🚀 Starting {self.window_title} automation...")
@@ -302,179 +384,64 @@ class BrandTestToolAutomation:
         if not self.window_handle:
             return False
      
-        if not self.create_new_project():
-            return False
+        # if not self.create_new_project():
+        #     return False
        
-        time.sleep(1)
+        # time.sleep(1)
         
         if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
         
-        
-        
-        # Now we are ready to navigate to the node we want to edit
+        # # Now we are ready to navigate to the node we want to edit
         navigator = TreeViewNavigator(automation_helper=project_setup_window_handle, collapse_count=2)
         
-        # retrieve data from pre-processed data where to navigate, assume 1.7.2
-        # and then put a check on the current node by pressing space key 
+        # # retrieve data from pre-processed data where to navigate, assume 1.7.2
+        # # and then put a check on the current node by pressing space key 
         time.sleep(1.5)
         navigator.navigate_to_path("1.7.2")
         time.sleep(0.2)
         project_setup_window_handle.keys("{space}")
         time.sleep(1) # gives time for the right panel to get populated
         
-        # Start the questionairres window
-        if not (edit_emvco_l3_test_session_window := start_questionnaire(project_setup_window_handle, "Edit EMVCo L3 Test Session - Questionnaire")):
-            return False
+        self.fill_questionnaire(project_setup_window_handle)
+        # ewindow = ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire", title_starts_with=True)
+        # time.sleep(1)
+        # self.send_tabs(ewindow, 2)
+        # if not select_countries(ewindow, ["Algeria"]):
+        #     print("❌ Failed to select countries")
+        #     return False
         
-      
+        # self.send_tabs(ewindow, 2, followed_by_space=True)
         
-        # # What we should see now is a tabbed UI and first tab is highlighted
-        # # we are looking for a 2nd tab, we ensure we click the right tab by scanning for the unfocussed tab image
-        edit_answers_location = scan_for_image("edit-answers.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
-        if edit_answers_location:
-            edit_emvco_l3_test_session_window.click(edit_answers_location)
-            time.sleep(2)
-        else:
-            print("❌ No edit answers button found")
-            return False
+        # # acquire processor name
+        # # this one has a single text input
+        # time.sleep(1)
+        # self.send_tabs(ewindow, 2)
+        # ewindow.type("some duummy name")
+        # # ewindow.keys("{tab}")
+        # # time.sleep(0.5)
+        # # ewindow.keys("{space}")
+        # self.send_tabs(ewindow, 1, followed_by_space=True)
         
-       
-        # Start filling questionairres
-        
-        # selecting countries
-        # this one has a multiple select list, space to select, up/down to navigate
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        if not select_countries(edit_emvco_l3_test_session_window, ["Algeria"]):
-            print("❌ Failed to select countries")
-            return False
-        
-        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_space=True)
-        
-        # acquire processor name
-        # this one has a single text input
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("some duummy name")
-        self.send_tabs(edit_emvco_l3_test_session_window, 1)
-        
-        # acquire processor name
-        # this one has a single text input
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("some duummy name")
-        self.send_tabs(edit_emvco_l3_test_session_window, 1)
-        
-        # tester information
-        # this one has 2 text inputs, one name and one email
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("uusername")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("email-test@yopmail.com")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_space=True)
-        
-        # testing
-        # this one has a checkbox, space to select
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.keys("{space}") # to check the checkbox
-        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_space=True)
-        
-        # deployment type
-        # this one has a radio input, down arrow to navigate, space to select
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.keys("{down 2}")
-        self.send_tabs(edit_emvco_l3_test_session_window, 1, followed_by_space=True)
-        
-        # terminal ATM/Information
-        # this one has 3 text inputs
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("terminal name")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("model name")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("version info")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
-
-        # Reference Number
-        time.sleep(1)
-        # this one has 2 text inputs
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("reference number")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("kernel #38293")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
-        
-        # Contact chip offline data authentication (ODA)
-        # this is a radio input so tab will navigate to different choices, we need to use up/down for toggling the selection
-        # for this we ensure we select the first one first, then use arrows if we should change it
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2) 
-        edit_emvco_l3_test_session_window.keys("{space}") #selecting the first item
-        edit_emvco_l3_test_session_window.keys("{down}") #selecting the second item
-        self.send_tabs(edit_emvco_l3_test_session_window, 1, followed_by_space=True)
-        
-        #Contact Only features
-        # another 2 sets of radio inputs
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.keys("{space}") #selecting the first item
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.keys("{space}") #selecting the first item
-        self.send_tabs(edit_emvco_l3_test_session_window, 1, followed_by_space=True)
-        
-        # Comment box
-        # this is a single text input
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("some comment")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
-        
-        # Test Session Name
-        time.sleep(1)
-        self.send_tabs(edit_emvco_l3_test_session_window, 2)
-        edit_emvco_l3_test_session_window.type("some test session name")
-        self.send_tabs(edit_emvco_l3_test_session_window, 2, followed_by_enter=True)
-        
-        
-        # Final information screen
-        # This one has a confirm button by default
-        time.sleep(1)
-        confirm_information_button_location = scan_for_image("confirm-information-button.png", edit_emvco_l3_test_session_window.get_bbox(), threshold=0.8)
-        if confirm_information_button_location:
-            edit_emvco_l3_test_session_window.click(confirm_information_button_location)
-        else:
-            print("❌ No confirm information button found")
-            return False
-        
-        time.sleep(3)
-        
-        # with all successful, we have a screen where OK button is auto highlighted
-        # we pressed it
-        edit_emvco_l3_test_session_window.keys("{space}")
-        
-        print("🎉 All automation steps completed successfully!")
-        print('Task completed. Exiting...')
-        exit()
+        # self.fill_questionnaire(pswindow)
         return True
     
-    def send_tabs(self, automation_helper, count, followed_by_space=False, followed_by_enter=False):
+    def send_tabs(self, automation_helper, count, followed_by_space=False, followed_by_enter=False, start_delay=0.01, end_delay=0.01):
+        time.sleep(start_delay)
         for _ in range(count):
-            time.sleep(0.5)
+            time.sleep(0.2)
             automation_helper.keys("{tab}")
             
+        time.sleep(end_delay)
+            
         if followed_by_space:
-            time.sleep(0.5)
+            time.sleep(0.2)
             automation_helper.keys("{space}")
             
         if followed_by_enter:
-            time.sleep(0.5)
+            time.sleep(0.2)
             automation_helper.keys("{enter}")
-    
+        
     def get_window_info(self):
         """Get current window information"""
         return self.window_info
@@ -496,8 +463,14 @@ if __name__ == "__main__":
     # Create automation instance
     btt_automation = BrandTestToolAutomation()
     
+    if not (edit_window := ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
+        print("❌ No edit window found")
+        exit()
+    
+    btt_automation.fill_questionnaire(edit_window)
+    
     # Option 1: Execute all steps at once
-    btt_automation.execute_all_steps()
+    # btt_automation.execute_all_steps()
     
     # Option 2: Execute functions individually for full control
     # btt_automation.send_navigation_keys()

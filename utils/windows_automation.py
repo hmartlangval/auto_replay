@@ -378,12 +378,14 @@ class ManualAutomationHelper:
             print(f"❌ Error setting up window: {e}")
             return False
             
-    def type(self, text, hwnd=None):
+    def type(self, text, hwnd=None, speed=0.01):
         """
         Type text into the focused window.
         
         Args:
             text: Text string to type
+            hwnd: Window handle (optional)
+            speed: Delay between characters in seconds (default: 0.2)
             
         Returns:
             bool: Success status
@@ -416,7 +418,7 @@ class ManualAutomationHelper:
                 if shift_state & 1:
                     win32api.keybd_event(win32con.VK_SHIFT, 0, win32con.KEYEVENTF_KEYUP, 0)
                 
-                time.sleep(0.01)  # Small delay between keystrokes
+                time.sleep(speed)  # Configurable delay between keystrokes
             
             return True
             
