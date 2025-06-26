@@ -31,7 +31,7 @@ class BrandTestToolAutomation:
         self.automation_helper = ManualAutomationHelper(target_window_title=self.window_title)
         self.window_handle = self.automation_helper.hwnd
         self.window_info = self.automation_helper.get_window_info()
-        self.graphics = ScreenOverlay()
+        self.graphics = ScreenOverlay(click_through=True)
    
     def send_navigation_keys(self, navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
         """Send navigation keys using the navigation parser"""
@@ -109,9 +109,9 @@ class BrandTestToolAutomation:
         print(f"📐 Window bbox: {bbox}")
         print(f"🔍 Search region (top-left 30%): {search_region}")
         
-        self.graphics.draw_rectangle(search_region[0], search_region[1], search_region[2], search_region[3], color="#00FF00", width=3, label="Search Region")
+        # self.graphics.draw_rectangle(search_region[0], search_region[1], search_region[2], search_region[3], color="#00FF00", width=3, label="Search Region")
         
-        max_iterations = 20  # Safety limit to prevent infinite loops
+        max_iterations = 5  # Safety limit to prevent infinite loops
         iteration = 0
         
         while iteration < max_iterations:
@@ -164,27 +164,27 @@ class BrandTestToolAutomation:
             center_x, center_y = sorted_results[0]
             print(f"🖱️  Clicking bottommost expanded item at ({center_x}, {center_y})")
             
-            # Click the minus icon to collapse
+            # Ensure window is focused and try multiple click approaches
+            automation_helper.bring_to_foreground()
+            time.sleep(0.2)
+            
+            # Try direct click first
             success = automation_helper.click((center_x, center_y))
+            
+            # If that fails, try a more aggressive approach
             if not success:
-                print(f"❌ Failed to click at ({center_x}, {center_y})")
+                print(f"⚠️  Direct click failed, trying alternative methods...")
+                # Try moving mouse first, then clicking
+                automation_helper.move_mouse(center_x, center_y)
+                time.sleep(0.1)
+                success = automation_helper.click((center_x, center_y))
+            
+            if not success:
+                print(f"❌ All click methods failed at ({center_x}, {center_y})")
                 break
             
             # Wait for the UI to update
             time.sleep(0.5)
-            
-            # Optional: Verify the click worked by checking if the item is still there
-            # This helps ensure we're making progress
-            verification_results = scan_for_all_occurrences(
-                image_name="minus-expanded.png",
-                bounding_box=search_region,
-                threshold=0.8
-            )
-            
-            if verification_results and len(verification_results) >= len(results):
-                print("⚠️  Warning: No change detected after click, continuing anyway...")
-            else:
-                print(f"✅ Progress made: {len(results)} → {len(verification_results) if verification_results else 0} expanded items")
         
         if iteration >= max_iterations:
             print(f"⚠️  Reached maximum iterations ({max_iterations}). Stopping to prevent infinite loop.")
@@ -233,6 +233,9 @@ class BrandTestToolAutomation:
         
         if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
+        
+        print('Task completed. Exiting...')
+        exit()
         
         # Now we are ready to navigate to the node we want to edit
         navigator = TreeViewNavigator(automation_helper=project_setup_window_handle, collapse_count=2)
