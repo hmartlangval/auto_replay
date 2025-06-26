@@ -27,7 +27,7 @@ def demo_manual_approach():
     print("🎯 Demo 1: Manual Method Calls")
     print("=" * 50)
     
-    edit_window = ManualAutomationHelper(target_window_title="Test Window")
+    edit_window = ManualAutomationHelper(target_window_title="Edit EMVCo", title_starts_with=True)
     if not edit_window:
         print("❌ No window found for demo")
         return
@@ -53,7 +53,7 @@ def demo_declarative_approach():
     print("🎯 Demo 2: Declarative Execution (Default Steps)")
     print("=" * 50)
     
-    edit_window = ManualAutomationHelper(target_window_title="Test Window")
+    edit_window = ManualAutomationHelper(target_window_title="Edit EMVCo", title_starts_with=True)
     if not edit_window:
         print("❌ No window found for demo")
         return
@@ -78,7 +78,7 @@ def demo_custom_declarative_approach():
     print("🎯 Demo 3: Custom Declarative Execution")
     print("=" * 50)
     
-    edit_window = ManualAutomationHelper(target_window_title="Test Window")
+    edit_window = ManualAutomationHelper(target_window_title="Edit EMVCo", title_starts_with=True)
     if not edit_window:
         print("❌ No window found for demo")
         return
@@ -125,7 +125,7 @@ test_session_name: File-based Test Session
 country: Algeria, Morocco
 """
     
-    edit_window = ManualAutomationHelper(target_window_title="Test Window")
+    edit_window = ManualAutomationHelper(target_window_title="Edit EMVCo", title_starts_with=True)
     if not edit_window:
         print("❌ No window found for demo")
         return
@@ -149,10 +149,12 @@ def show_execution_steps_examples():
     
     print("✅ Valid formats:")
     print("country: United States")
-    print("country: Algeria, Morocco")
+    print("country: Algeria, Morocco")  # Parsed as ["Algeria", "Morocco"]
+    print("country: [Canada, Mexico]")  # Explicit list format also works
     print("processor_name: My Processor")
-    print("testing_details: true, false")
-    print("confirm_final_information:")
+    print("user_tester_information: John Doe, john@email.com")  # Parsed as two args
+    print("testing_details: true, false")  # Parsed as boolean args
+    print("confirm_final_information:")  # No arguments
     print("# This is a comment")
     print("")
     

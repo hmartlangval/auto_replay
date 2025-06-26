@@ -42,7 +42,8 @@ class BaseQuestionnaireForms:
     
     # Default execution steps - child classes can override this
     execution_steps = """
-country: United States
+# Use [item1, item2] format for methods expecting lists
+country: [United States, Canada]
 processor_name: Fiserv
 user_tester_information: Tester, Tester@thoughtfocus.com
 testing_details: true, true
@@ -72,6 +73,11 @@ test_session_name: some test session name
         """
         Parse the execution steps text into a list of method calls.
         
+        Parsing rules:
+        - If argument contains [item1, item2, item3] format, parse as array/list
+        - Otherwise, split by comma for multiple parameters
+        - Convert true/false/none to proper Python types
+        
         Args:
             steps_text (str): Optional steps text. If None, uses self.execution_steps
             
@@ -99,25 +105,28 @@ test_session_name: some test session name
             method_name = method_name.strip()
             args_str = args_str.strip()
             
-            # Parse arguments
+            # Parse arguments using simplified approach
             args = []
             if args_str:
-                # Split by comma and clean up
-                raw_args = [arg.strip() for arg in args_str.split(',')]
-                for arg in raw_args:
-                    # Convert string representations to proper types
-                    if arg.lower() == 'true':
-                        args.append(True)
-                    elif arg.lower() == 'false':
-                        args.append(False)
-                    elif arg.lower() == 'none':
-                        args.append(None)
-                    elif arg.startswith('[') and arg.endswith(']'):
-                        # Handle list format: [item1, item2]
-                        list_items = arg[1:-1].split(',')
-                        args.append([item.strip() for item in list_items if item.strip()])
-                    else:
-                        args.append(arg)
+                # Check if the entire argument string is an array format
+                if args_str.startswith('[') and args_str.endswith(']'):
+                    # Parse as array: [item1, item2, item3] -> ["item1", "item2", "item3"]
+                    list_items = args_str[1:-1].split(',')
+                    array_items = [item.strip() for item in list_items if item.strip()]
+                    args.append(array_items)
+                else:
+                    # Parse as comma-separated parameters
+                    raw_args = [arg.strip() for arg in args_str.split(',')]
+                    for arg in raw_args:
+                        # Convert string representations to proper types
+                        if arg.lower() == 'true':
+                            args.append(True)
+                        elif arg.lower() == 'false':
+                            args.append(False)
+                        elif arg.lower() == 'none':
+                            args.append(None)
+                        else:
+                            args.append(arg)
             
             parsed_steps.append((method_name, args))
         

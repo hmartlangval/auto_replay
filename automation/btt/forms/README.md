@@ -65,9 +65,62 @@ from automation.btt.forms import EMVCoL1QuestionnaireForms
 # Initialize with specific forms class
 qf = QuestionnaireFiller(edit_window, forms_class=EMVCoL1QuestionnaireForms)
 
-# Use the forms
+# Method 1: Call methods directly
 qf.questionnaire_forms.processor_name("EMVCo L1 Processor")
 qf.questionnaire_forms.country(["United States", "Canada"])
+
+# Method 2: Use declarative execution
+qf.execute()  # Uses the class's predefined execution_steps
+```
+
+## Declarative Execution Format
+
+You can define form execution steps as simple text configuration:
+
+```python
+execution_steps = """
+# Simple parameter format - comma-separated
+processor_name: Fiserv
+user_tester_information: Tester, Tester@thoughtfocus.com
+testing_details: true, false
+
+# Array format - use [item1, item2, item3] for lists
+country: [United States, Canada, Mexico]
+
+# No parameters
+confirm_final_information:
+
+# Comments are supported
+# deployment_type: true
+"""
+```
+
+### Parsing Rules
+
+- **Array format**: Use `[item1, item2, item3]` for methods expecting lists
+- **Multiple parameters**: Use comma-separated values `param1, param2, param3`
+- **Boolean values**: Use `true`, `false`, `none` (case-insensitive)
+- **Comments**: Lines starting with `#` are ignored
+- **Method calls**: Format is `method_name: arguments`
+
+### Examples
+
+```
+# Single parameter
+processor_name: Custom Processor
+
+# Multiple parameters
+user_tester_information: John Doe, john@example.com
+
+# Array/list parameter
+country: [United States, Canada, United Kingdom]
+
+# Boolean parameters
+testing_details: true, false
+deployment_type: false
+
+# No parameters
+confirm_final_information:
 ```
 
 ## Upcoming Forms (15-20 planned)

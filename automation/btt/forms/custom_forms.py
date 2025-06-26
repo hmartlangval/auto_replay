@@ -27,8 +27,8 @@ class CustomQuestionnaireForms(BaseQuestionnaireForms):
     
     # Custom execution steps - different from base class
     execution_steps = """
-# Custom form execution steps
-country: Canada, Mexico
+# Custom form execution steps - use [item1, item2] for arrays
+country: [Canada, Mexico]
 processor_name: Custom Processor
 user_tester_information: Custom Tester, custom@test.com
 testing_details: false, true
