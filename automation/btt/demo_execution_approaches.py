@@ -122,7 +122,16 @@ test_session_name: File-based Test Session
 """
     custom_steps = """
 # File-based execution steps
-country: [Algeria, Morocco]
+country: [United States (US)]
+processor_name: File-based Processor
+user_tester_information: File Tester, file@test.com
+testing_details: true, false
+deployment_type: 1
+terminal_implementation: true
+visa_products_accepted: true, false, false
+merchant_information:
+terminal_atm_information: terminal name, model name, version info
+reference_number: 1,2,3333,4444
 """
     
     edit_window = ManualAutomationHelper(target_window_title="Edit EMVCo", title_starts_with=True)

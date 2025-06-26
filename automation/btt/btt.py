@@ -329,11 +329,11 @@ class BrandTestToolAutomation:
             return False
         
         # Step 5: Deployment type
-        if not forms.deployment_type(use_dropdown=True):
+        if not forms.deployment_type(dropdown_down_count=1):
             return False
         
         # Step 6: Merchant information
-        if not forms.merchant_information(skip_optional=True):
+        if not forms.merchant_information():
             return False
         
         # Step 7: Terminal ATM information

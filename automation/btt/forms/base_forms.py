@@ -217,30 +217,55 @@ test_session_name: some test session name
         sequence += ",tab,tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
-    def deployment_type(self, use_dropdown=True):
+    def deployment_type(self, dropdown_down_count: int = 0):
         """
         Deployment type - dropdown input, down arrow to select the item.
         """
-        if use_dropdown:
-            return self.qf.parse_and_execute_sequence("__0.2,tab,tab,{down},__0.2,tab,space")
-        else:
-            return self.qf.parse_and_execute_sequence("__0.2,tab,tab,tab,space")
+        # Get number of down presses needed based on index
+        down_sequence = ",{down}" * dropdown_down_count if dropdown_down_count > 0 else ""
+        
+        sequence = f"__0.2,tab,tab{down_sequence},__0.2,tab,space"
+        return self.qf.parse_and_execute_sequence(sequence)
     
-    def merchant_information(self, skip_optional=True):
+    def merchant_information(self, value:str = None):
         """
         Merchant Information with optional field of 1 text input.
         """
-        if skip_optional:
-            return self.qf.parse_and_execute_sequence("tab,tab,tab,space")
+        sequence = "__0.2,tab,tab"
+        if value:
+            sequence += f"{value},"
+        sequence += "tab,tab,space"
+        return self.qf.parse_and_execute_sequence(sequence)
+    
+    def visa_products_accepted(self, first_true=True, second_true=True, third_true=True):
+        """Three sets of radio inputs"""
+        first_key = "{space}" if first_true else "{down}"
+        second_key = "{space}" if second_true else "{down}"
+        third_key = "{space}" if third_true else "{down}"
+        
+        sequence = f"__0.2,tab,tab,{first_key},tab,tab,{second_key},tab,tab,{third_key},tab,space"
+        return self.qf.parse_and_execute_sequence(sequence)
+    
+    def terminal_implementation(self, isTrue=True):
+        if isTrue:
+            return self.qf.parse_and_execute_sequence("__0.2,tab,tab,{space},tab,space")
         else:
-            # Could be extended to fill optional field if needed
-            return self.qf.parse_and_execute_sequence("tab,tab,tab,space")
+            return self.qf.parse_and_execute_sequence("__0.2,tab,tab,{down},tab,space")
     
     def terminal_atm_information(self, terminal_name="terminal name", model_name="model name", version_info="version info"):
         """
         Terminal ATM/Information - 3 text inputs and an extra button after each input.
         """
         sequence = f"__0.2,tab,tab,{terminal_name},tab,tab,tab,{model_name},tab,tab,tab,{version_info},tab,tab,space"
+        return self.qf.parse_and_execute_sequence(sequence)
+    
+    def reference_number(self, first_value="1", second_value="2", third_value="3", fourth_value="4"):
+        """
+        Reference number - 4 text inputs.
+        first 3 has button next to it.
+        last has none
+        """
+        sequence = f"__0.2,tab,tab,{first_value},tab,tab,tab,{second_value},tab,tab,tab,{third_value},tab,tab,tab,{fourth_value},tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
     def contactless_atm_information(self, atm1_name="ATM1", atm2_name="ATM2"):
