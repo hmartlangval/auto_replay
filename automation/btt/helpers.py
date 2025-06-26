@@ -49,7 +49,8 @@ def start_questionnaire(automator, window_title: str):
 
 def select_countries(automation_helper, country_list=None):
     """
-    Select countries from a multi-list view using keyboard navigation.
+    Select countries from a multi-list view using optimized keyboard navigation.
+    Uses first-letter navigation to jump quickly to target countries, then fine-tunes with arrow keys.
     
     Args:
         automation_helper: ManualAutomationHelper instance for keyboard automation
@@ -63,7 +64,7 @@ def select_countries(automation_helper, country_list=None):
         return False
     
     try:
-        print(f"🌍 Starting country selection for {len(country_list)} countries...")
+        print(f"🌍 Starting optimized country selection for {len(country_list)} countries...")
         
         all_countries = [
             "Afghanistan", "Albania", "Algeria", "American Samoa", "Andorra", "Angola", "Anguilla", "Antigua",
@@ -103,95 +104,166 @@ def select_countries(automation_helper, country_list=None):
             "Yemen Arab Republic", "Zambia", "Zimbabwe"
         ]
         
-        # Create a working copy of all countries to track removals
-        remaining_countries = all_countries.copy()
-        current_position = 0  # Currently highlighted position (0-based, starting at Afghanistan)
+        def find_country_index(country_name, country_list):
+            """Find the index of a country in the list (case-insensitive)"""
+            for i, country in enumerate(country_list):
+                if country.lower() == country_name.lower():
+                    return i
+            return -1
         
-        # Convert country_list to a set for faster lookups
-        countries_to_select = set(country_list)
-        selected_count = 0
+        def get_first_country_with_letter(letter, country_list):
+            """Get the first country that starts with the given letter"""
+            letter_lower = letter.lower()
+            for i, country in enumerate(country_list):
+                if country.lower().startswith(letter_lower):
+                    return i, country
+            return -1, None
         
-        print(f"📍 Starting at position {current_position} ('{remaining_countries[current_position]}')")
-        
-        # Process each country in the remaining list
-        while remaining_countries and selected_count < len(country_list):
-            current_country = remaining_countries[current_position]
+        def navigate_to_country_optimized(target_country, current_pos, available_countries):
+            """
+            Navigate to target country using correct UI behavior understanding
+            Returns: (new_position, success)
+            """
+            target_index = find_country_index(target_country, available_countries)
+            if target_index == -1:
+                print(f"❌ Country '{target_country}' not found in list")
+                return current_pos, False
             
-            # Check if current country should be selected
-            if current_country in countries_to_select:
-                print(f"✅ Selecting '{current_country}' at position {current_position}")
-                
-                # Press spacebar to select the country
-                success = automation_helper.keys("{space}")
+            print(f"🎯 Navigating to '{target_country}' (index {target_index}) from current position {current_pos}")
+            
+            # Get current and target letter groups
+            current_country = available_countries[current_pos]
+            current_letter = current_country[0].upper()
+            target_letter = target_country[0].upper()
+            
+            print(f"📍 Current: '{current_country}' (letter {current_letter}), Target: '{target_country}' (letter {target_letter})")
+            
+            # Only use letter navigation if we're in a different letter group
+            if current_letter != target_letter:
+                print(f"🔤 Different letter groups, typing '{target_letter}' to jump to that section")
+                success = automation_helper.keys(target_letter)
                 if not success:
-                    print(f"❌ Failed to select '{current_country}'")
-                    return False
+                    print(f"❌ Failed to type letter '{target_letter}'")
+                    return current_pos, False
                 
-                time.sleep(0.1)  # Small delay after selection
+                time.sleep(0.2)  # Allow UI to respond
                 
-                # Remove the selected country from remaining list
-                remaining_countries.pop(current_position)
-                selected_count += 1
+                # After typing letter, we should be at the first country with that letter
+                first_with_letter_pos, first_with_letter = get_first_country_with_letter(target_letter, available_countries)
+                if first_with_letter_pos == -1:
+                    print(f"⚠️ No country found starting with '{target_letter}'")
+                    return current_pos, False
                 
-                # Adjust current position after removal
-                # If we removed the last item, move to previous position
-                if current_position >= len(remaining_countries) and remaining_countries:
-                    current_position = len(remaining_countries) - 1
-                    # Move cursor to the new last position
-                    automation_helper.keys("{up}")
-                    time.sleep(0.05)
-                # If list is empty, we're done
-                elif not remaining_countries:
-                    break
-                # Otherwise, the current position now points to the next item
-                # No navigation needed as the cursor will be on the next item
-                
-                print(f"🔄 Remaining countries: {len(remaining_countries)}, Position: {current_position}")
-                
+                current_pos = first_with_letter_pos
+                print(f"📍 After letter jump, now at position {current_pos}: '{available_countries[current_pos]}'")
             else:
-                # Current country not in selection list, move to next
-                if current_position < len(remaining_countries) - 1:
-                    # Move down if not at the end
-                    current_position += 1
+                print(f"🎯 Same letter group, using arrow keys only")
+            
+            # Now navigate within the same letter group using up/down arrows
+            steps_needed = target_index - current_pos
+            print(f"🔢 Need to move {steps_needed} steps ({'down' if steps_needed > 0 else 'up'})")
+            
+            if steps_needed > 0:
+                # Move down
+                for step in range(abs(steps_needed)):
                     success = automation_helper.keys("{down}")
                     if not success:
-                        print(f"❌ Failed to navigate down from '{current_country}'")
-                        return False
+                        print(f"❌ Failed to move down at step {step+1}")
+                        return current_pos, False
+                    current_pos += 1
                     time.sleep(0.05)
-                else:
-                    # At the end of list, check if we missed any countries
-                    missing_countries = countries_to_select - set([c for c in all_countries if c not in remaining_countries])
-                    if missing_countries:
-                        print(f"⚠️ Reached end of list, but still need to select: {missing_countries}")
-                        # Reset to beginning and continue searching
-                        # Move to top of list
-                        for _ in range(current_position):
-                            automation_helper.keys("{up}")
-                            time.sleep(0.02)
-                        current_position = 0
-                    else:
-                        # All countries selected, break
-                        break
+                    
+            elif steps_needed < 0:
+                # Move up
+                for step in range(abs(steps_needed)):
+                    success = automation_helper.keys("{up}")
+                    if not success:
+                        print(f"❌ Failed to move up at step {step+1}")
+                        return current_pos, False
+                    current_pos -= 1
+                    time.sleep(0.05)
+            
+            # We should now be at the target position
+            final_country = available_countries[current_pos]
+            print(f"📍 Final position {current_pos}: '{final_country}' (should be '{target_country}')")
+            
+            return current_pos, True
         
-        # Verify all countries were selected
-        if selected_count == len(country_list):
-            print(f"✅ Successfully selected all {selected_count} countries")
+        def navigate_to_country_manual(target_country, current_pos, country_list):
+            """Fallback manual navigation if first-letter method fails"""
+            target_index = find_country_index(target_country, country_list)
+            if target_index == -1:
+                return current_pos, False
             
-            # # Final step: Press Tab twice and Enter once
-            # print("🎯 Completing selection: Tab -> Tab -> Enter")
-            # automation_helper.keys("{tab}")
-            # time.sleep(0.1)
-            # automation_helper.keys("{tab}")
-            # time.sleep(0.1)
-            # automation_helper.keys("{enter}")
-            # time.sleep(0.2)
+            steps_needed = target_index - current_pos
+            if steps_needed > 0:
+                for i in range(abs(steps_needed)):
+                    automation_helper.keys("{down}")
+                    time.sleep(0.05)
+            elif steps_needed < 0:
+                for i in range(abs(steps_needed)):
+                    automation_helper.keys("{up}")
+                    time.sleep(0.05)
             
-            return True
-        else:
-            missing_countries = countries_to_select - set([c for c in all_countries if c not in remaining_countries])
-            print(f"❌ Only selected {selected_count}/{len(country_list)} countries. Missing: {missing_countries}")
-            return False
+            return target_index, True
+        
+        # Start selection process
+        available_countries = all_countries.copy()  # Track remaining countries
+        current_position = 0  # Start at first country (Afghanistan)
+        selected_count = 0
+        
+        # Process each country to select
+        for target_country in country_list:
+            print(f"\n🎯 Selecting country {selected_count + 1}/{len(country_list)}: '{target_country}'")
+            print(f"📊 Available countries: {len(available_countries)}, Current position: {current_position}")
+            
+            # Navigate to the target country using optimized method
+            new_position, nav_success = navigate_to_country_optimized(
+                target_country, current_position, available_countries
+            )
+            
+            if not nav_success:
+                print(f"❌ Failed to navigate to '{target_country}'")
+                return False
+            
+            current_position = new_position
+            
+            # Select the country
+            print(f"✅ Selecting '{target_country}' at position {current_position}")
+            success = automation_helper.keys("{space}")
+            if not success:
+                print(f"❌ Failed to select '{target_country}'")
+                return False
+            
+            print(f"⏳ Waiting for UI to update after selection...")
+            time.sleep(1.5)  # Give UI time to update - remove item and adjust cursor position
+            selected_count += 1
+            
+            # After selection: country is removed and cursor moves to position - 1
+            removed_country = available_countries.pop(current_position)
+            print(f"🗑️ Removed '{removed_country}' from available list")
+            
+            # Update current position: cursor moves to position - 1
+            if current_position > 0:
+                current_position -= 1
+            else:
+                current_position = 0  # Stay at 0 if we were at the beginning
+            
+            # Verify position doesn't exceed available countries
+            if current_position >= len(available_countries) and available_countries:
+                current_position = len(available_countries) - 1
+            
+            if available_countries and current_position < len(available_countries):
+                current_country = available_countries[current_position]
+                print(f"📍 After selection, cursor now at position {current_position}: '{current_country}'")
+            else:
+                print(f"📍 After selection, cursor at position {current_position} (list may be empty)")
+            
+            print(f"✅ Selected '{target_country}' successfully ({selected_count}/{len(country_list)})")
+        
+        print(f"\n🎉 Successfully selected all {selected_count} countries using optimized navigation!")
+        return True
             
     except Exception as e:
-        print(f"❌ Error during country selection: {e}")
+        print(f"❌ Error during optimized country selection: {e}")
         return False

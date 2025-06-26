@@ -106,7 +106,7 @@ def demo_file_based_execution():
     # Example of loading from file (implementation ready for this)
     custom_steps = """
 # File-based execution steps
-country: Algeria, Morocco
+country: [Algeria, Morocco]
 processor_name: File-based Processor
 user_tester_information: File Tester, file@test.com
 testing_details: true, false
@@ -122,7 +122,7 @@ test_session_name: File-based Test Session
 """
     custom_steps = """
 # File-based execution steps
-country: Algeria, Morocco
+country: [Algeria, Morocco]
 """
     
     edit_window = ManualAutomationHelper(target_window_title="Edit EMVCo", title_starts_with=True)
