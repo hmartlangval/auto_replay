@@ -291,7 +291,8 @@ test_session_name: some test session name
         if value != "":
             sequence += f"{value}"
         
-        sequence += ",tab,space"
+        sequence += ",(img:use-suggested-value-btn.png,tab),tab,space"
+        print("merchant_information: sequence before execution: ", sequence)
         return self.qf.parse_and_execute_sequence(sequence)
        
     
@@ -414,7 +415,11 @@ test_session_name: some test session name
         """
         sequence = "__0.2,tab,tab"
         for i in range(len(values)):
-            sequence = self.__set_dropdown_value(sequence, values[i], last_button_tab_count if i == len(values)-1 else 2)
+            try:
+                sequence = self.__set_dropdown_value(sequence, int(values[i]), last_button_tab_count if i == len(values)-1 else 2)
+            except ValueError:
+                print(f"❌ Invalid position value: {values[i]}")
+                return False
         if go_next:
             sequence += ",tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
@@ -427,7 +432,7 @@ test_session_name: some test session name
         sequence += ",{tab}" * followed_by_tab_count
         return sequence
     
-    def pin_opt_out_mechanism(self, first_position=1, second_position=1):
+    def pin_opt_out_mechanism(self, first_position:str="1", second_position:str="1"):
         """
         PIN opt-out mechanism - 2 sets of dropdown inputs.
         """

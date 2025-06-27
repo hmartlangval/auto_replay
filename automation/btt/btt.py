@@ -393,6 +393,7 @@ class BrandTestToolAutomation:
             contact_only_features: false, true, true
             contactless_chip_cvms: true, true, true, false
             contactless_only_features: false
+            pin_opt_out_mechanism: 1, 1
             fleet_2_0: false
             comment_box:
             confirm_final_information:
@@ -508,8 +509,8 @@ class BrandTestToolAutomation:
         print("🔄 Automation state reset")
 
 
-# CUSTOM_MODE = "START_FROM_CUSTOM"
-CUSTOM_MODE = "START_FROM_CLICK_START_TEST"
+# CUSTOM_MODE = "START_FROM_CLICK_START_TEST"
+CUSTOM_MODE = "START_FROM_CUSTOM"
 
 # Example usage
 if __name__ == "__main__":
@@ -529,6 +530,13 @@ if __name__ == "__main__":
             qf.questionnaire_forms.values["testing_contact"] = True
             qf.questionnaire_forms.values["testing_contactless"] = True
             qf.execute("""
+                    contactless_only_features: false
+                    pin_opt_out_mechanism: 1, 1
+                    fleet_2_0: false
+                    comment_box:
+                    confirm_final_information:
+                    sleep: 2
+                    apply_ok:
                     # terminal_atm_information: Ingenico, DESK/5000, Test application V1
                     # reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
                     # #    testing_details: true, true
