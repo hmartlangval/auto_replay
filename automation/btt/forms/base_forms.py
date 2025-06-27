@@ -275,7 +275,7 @@ test_session_name: some test session name
         sequence = f"__0.2,tab,tab{down_sequence},__0.2,tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
-    def merchant_information(self, value:str = "-SKIP-"):
+    def merchant_information(self, value:str = ""):
         """
         Merchant Information with optional field of 1 text input.
         """
@@ -283,7 +283,7 @@ test_session_name: some test session name
         
         value = value.strip()
         
-        if value is not "-SKIP-" and value != "":
+        if value != "":
             sequence += f"{value}"
         
         sequence += ",tab,tab,space"

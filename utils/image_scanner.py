@@ -123,7 +123,8 @@ class ImageScanner:
                       image_name: str, 
                       bounding_box: Tuple[int, int, int, int],
                       threshold: float = 0.8,
-                      click_offset: Tuple[int, int] = (0, 0)) -> Optional[Tuple[int, int]]:
+                      click_offset: Tuple[int, int] = (0, 0),
+                      animated_image: bool = False) -> Optional[Tuple[int, int]]:
         """
         Scan for an image within a bounding box and return mouse click coordinates
         
@@ -132,9 +133,23 @@ class ImageScanner:
             bounding_box (Tuple[int, int, int, int]): (x, y, width, height) of search area
             threshold (float): Minimum confidence threshold for template matching
             click_offset (Tuple[int, int]): Offset from template center for click position
+            animated_image (bool): If True, uses robust search for animated/transitioning UI elements
             
         Returns:
             Tuple[int, int]: (x, y) coordinates for mouse click, or None if not found
+        """
+        if animated_image:
+            return self._scan_animated_image(image_name, bounding_box, threshold, click_offset)
+        else:
+            return self._scan_standard_image(image_name, bounding_box, threshold, click_offset)
+    
+    def _scan_standard_image(self, 
+                           image_name: str, 
+                           bounding_box: Tuple[int, int, int, int],
+                           threshold: float = 0.8,
+                           click_offset: Tuple[int, int] = (0, 0)) -> Optional[Tuple[int, int]]:
+        """
+        Standard image scanning method (original implementation)
         """
         try:
             # Load the template image
@@ -173,10 +188,144 @@ class ImageScanner:
             print(f"Error scanning for image '{image_name}': {str(e)}")
             return None
     
+    def _scan_animated_image(self, 
+                           image_name: str, 
+                           bounding_box: Tuple[int, int, int, int],
+                           base_threshold: float = 0.8,
+                           click_offset: Tuple[int, int] = (0, 0),
+                           max_attempts: int = 5) -> Optional[Tuple[int, int]]:
+        """
+        Robust image scanning method for animated/transitioning UI elements
+        Uses multiple threshold levels and attempts to handle Windows animations
+        """
+        import time
+        
+        # Generate possible image variations (normal, focused, hover, etc.)
+        image_variations = self._generate_image_variations(image_name)
+        
+        # Progressive thresholds - start strict, get more lenient
+        thresholds = [base_threshold, base_threshold - 0.05, base_threshold - 0.1, 
+                     base_threshold - 0.15, base_threshold - 0.2, base_threshold - 0.25]
+        
+        # Ensure thresholds stay within valid range
+        thresholds = [max(0.1, t) for t in thresholds]
+        
+        # Wait a moment for any ongoing animations to settle
+        time.sleep(0.1)
+        
+        for attempt in range(max_attempts):
+            # Capture screen region for this attempt
+            try:
+                region_image = self.capture_screen_region(bounding_box)
+            except Exception as e:
+                print(f"⚠️ Error capturing screen region on attempt {attempt + 1}: {e}")
+                continue
+            
+            for threshold in thresholds:
+                for variation in image_variations:
+                    try:
+                        # Load the template image variation
+                        template = self.load_template(variation)
+                        
+                        # Find the template in the region
+                        match_result = self.find_template_in_region(template, region_image, threshold)
+                        
+                        if match_result is not None:
+                            # Extract match coordinates and confidence
+                            template_x, template_y, confidence = match_result
+                            
+                            # Get template dimensions
+                            template_height, template_width = template.shape[:2]
+                            
+                            # Calculate the center of the matched template
+                            center_x = template_x + template_width // 2
+                            center_y = template_y + template_height // 2
+                            
+                            # Apply click offset
+                            click_x = center_x + click_offset[0]
+                            click_y = center_y + click_offset[1]
+                            
+                            # Convert relative coordinates to absolute screen coordinates
+                            absolute_x = bounding_box[0] + click_x
+                            absolute_y = bounding_box[1] + click_y
+                            
+                            print(f"✅ Animated image '{image_name}' found using '{variation}' "
+                                  f"(threshold: {threshold:.2f}, confidence: {confidence:.2f})")
+                            
+                            return absolute_x, absolute_y
+                            
+                    except FileNotFoundError:
+                        # Skip missing image variations
+                        continue
+                    except Exception as e:
+                        # Skip this variation and continue
+                        continue
+            
+            # Wait between attempts for animations to settle
+            if attempt < max_attempts - 1:
+                time.sleep(0.2)
+        
+        print(f"❌ Animated image '{image_name}' not found after {max_attempts} attempts")
+        return None
+    
+    def _generate_image_variations(self, image_name: str) -> list:
+        """
+        Generate possible image variations for animated UI elements
+        
+        Args:
+            image_name (str): Base image name
+            
+        Returns:
+            list: List of possible image variation names to try
+        """
+        variations = [image_name]  # Always include the original
+        
+        # Extract base name and extension
+        name_parts = image_name.rsplit('.', 1)
+        if len(name_parts) == 2:
+            base_name, extension = name_parts
+        else:
+            base_name, extension = image_name, 'png'
+        
+        # Common UI state variations
+        state_suffixes = [
+            '-normal', '-focused', '-focussed', '-hover', '-pressed', 
+            '-active', '-disabled', '-selected', '-highlighted'
+        ]
+        
+        # Generate variations by checking if base name already has a state suffix
+        has_state_suffix = any(base_name.endswith(suffix) for suffix in state_suffixes)
+        
+        if has_state_suffix:
+            # If image already has a state suffix, try to find its counterparts
+            for suffix in state_suffixes:
+                if base_name.endswith(suffix):
+                    # Remove the current suffix and try other states
+                    root_name = base_name[:-len(suffix)]
+                    for other_suffix in state_suffixes:
+                        if other_suffix != suffix:
+                            variation = f"{root_name}{other_suffix}.{extension}"
+                            if variation not in variations:
+                                variations.append(variation)
+                    # Also try without suffix
+                    root_variation = f"{root_name}.{extension}"
+                    if root_variation not in variations:
+                        variations.append(root_variation)
+                    break
+        else:
+            # If no state suffix, try adding common state suffixes
+            for suffix in state_suffixes:
+                variation = f"{base_name}{suffix}.{extension}"
+                if variation not in variations:
+                    variations.append(variation)
+        
+        return variations
+    
     def scan_for_multiple_images(self, 
                                 image_names: list, 
                                 bounding_box: Tuple[int, int, int, int],
-                                threshold: float = 0.8) -> Dict[str, Tuple[int, int]]:
+                                threshold: float = 0.8,
+                                animated_image: bool = False) -> Dict[str, Tuple[int, int]]:
         """
         Scan for multiple images within a bounding box
         
@@ -184,44 +333,18 @@ class ImageScanner:
             image_names (list): List of template image file names
             bounding_box (Tuple[int, int, int, int]): (x, y, width, height) of search area
             threshold (float): Minimum confidence threshold for template matching
+            animated_image (bool): If True, uses robust search for animated/transitioning UI elements
             
         Returns:
             Dict[str, Tuple[int, int]]: Dictionary mapping image names to click coordinates
         """
         results = {}
         
-        # Capture the screen region once
-        region_image = self.capture_screen_region(bounding_box)
-        
         for image_name in image_names:
-            try:
-                # Load the template image
-                template = self.load_template(image_name)
-                
-                # Find the template in the region
-                match_result = self.find_template_in_region(template, region_image, threshold)
-                
-                if match_result is not None:
-                    # Extract match coordinates
-                    template_x, template_y, confidence = match_result
-                    
-                    # Get template dimensions
-                    template_height, template_width = template.shape[:2]
-                    
-                    # Calculate the center of the matched template
-                    center_x = template_x + template_width // 2
-                    center_y = template_y + template_height // 2
-                    
-                    # Convert to absolute screen coordinates
-                    absolute_x = bounding_box[0] + center_x
-                    absolute_y = bounding_box[1] + center_y
-                    
-                    results[image_name] = (absolute_x, absolute_y)
-                    
-            except Exception as e:
-                print(f"Error scanning for image '{image_name}': {str(e)}")
-                continue
-                
+            location = self.scan_for_image(image_name, bounding_box, threshold, (0, 0), animated_image)
+            if location:
+                results[image_name] = location
+        
         return results
     
     def get_template_info(self, image_name: str) -> Optional[Dict[str, Any]]:
@@ -329,7 +452,8 @@ class ImageScanner:
                            image_name: str, 
                            bounding_box: Tuple[int, int, int, int],
                            threshold: float = 0.8,
-                           click_offset: Tuple[int, int] = (0, 0)) -> list:
+                           click_offset: Tuple[int, int] = (0, 0),
+                           animated_image: bool = False) -> list:
         """
         Scan for all occurrences of an image within a bounding box
         
@@ -338,9 +462,28 @@ class ImageScanner:
             bounding_box (Tuple[int, int, int, int]): (x, y, width, height) of search area
             threshold (float): Minimum confidence threshold for template matching
             click_offset (Tuple[int, int]): Offset from template center for click position
+            animated_image (bool): If True, uses robust search for animated/transitioning UI elements
             
         Returns:
             list: List of (x, y) coordinates for all found instances
+        """
+        if animated_image:
+            # For animated images, we'll use the robust single-image search
+            # Note: Finding all occurrences of animated images is complex due to state changes
+            # So we'll find the first occurrence using animated search
+            result = self.scan_for_image(image_name, bounding_box, threshold, click_offset, animated_image=True)
+            return [result] if result else []
+        else:
+            # Use the standard approach for non-animated images
+            return self._scan_for_all_images_standard(image_name, bounding_box, threshold, click_offset)
+    
+    def _scan_for_all_images_standard(self, 
+                                    image_name: str, 
+                                    bounding_box: Tuple[int, int, int, int],
+                                    threshold: float = 0.8,
+                                    click_offset: Tuple[int, int] = (0, 0)) -> list:
+        """
+        Standard implementation for finding all occurrences of an image
         """
         try:
             # Load the template image
@@ -349,33 +492,29 @@ class ImageScanner:
             # Capture the screen region
             region_image = self.capture_screen_region(bounding_box)
             
-            # Find all templates in the region
+            # Find all occurrences of the template in the region
             matches = self.find_all_templates_in_region(template, region_image, threshold)
             
-            if not matches:
-                return []
-            
-            # Get template dimensions
+            # Convert to absolute coordinates with click offset
+            results = []
             template_height, template_width = template.shape[:2]
             
-            # Convert matches to absolute coordinates
-            absolute_coordinates = []
-            for template_x, template_y, confidence in matches:
+            for match_x, match_y, confidence in matches:
                 # Calculate the center of the matched template
-                center_x = template_x + template_width // 2
-                center_y = template_y + template_height // 2
+                center_x = match_x + template_width // 2
+                center_y = match_y + template_height // 2
                 
                 # Apply click offset
                 click_x = center_x + click_offset[0]
                 click_y = center_y + click_offset[1]
                 
-                # Convert relative coordinates to absolute screen coordinates
+                # Convert to absolute screen coordinates
                 absolute_x = bounding_box[0] + click_x
                 absolute_y = bounding_box[1] + click_y
                 
-                absolute_coordinates.append((absolute_x, absolute_y))
+                results.append((absolute_x, absolute_y))
             
-            return absolute_coordinates
+            return results
             
         except Exception as e:
             print(f"Error scanning for all images '{image_name}': {str(e)}")
@@ -387,7 +526,8 @@ def scan_for_image(image_name: str,
                   bounding_box: Tuple[int, int, int, int],
                   threshold: float = 0.8,
                   click_offset: Tuple[int, int] = (0, 0),
-                  images_folder: str = "images") -> Optional[Tuple[int, int]]:
+                  images_folder: str = "images",
+                  animated_image: bool = False) -> Optional[Tuple[int, int]]:
     """
     Convenience function to scan for a single image
     
@@ -397,18 +537,20 @@ def scan_for_image(image_name: str,
         threshold (float): Minimum confidence threshold for template matching
         click_offset (Tuple[int, int]): Offset from template center for click position
         images_folder (str): Path to the folder containing template images
+        animated_image (bool): If True, uses robust search for animated/transitioning UI elements
         
     Returns:
         Tuple[int, int]: (x, y) coordinates for mouse click, or None if not found
     """
     scanner = ImageScanner(images_folder)
-    return scanner.scan_for_image(image_name, bounding_box, threshold, click_offset)
+    return scanner.scan_for_image(image_name, bounding_box, threshold, click_offset, animated_image)
 
 
 def scan_for_multiple_images(image_names: list, 
                             bounding_box: Tuple[int, int, int, int],
                             threshold: float = 0.8,
-                            images_folder: str = "images") -> Dict[str, Tuple[int, int]]:
+                            images_folder: str = "images",
+                            animated_image: bool = False) -> Dict[str, Tuple[int, int]]:
     """
     Convenience function to scan for multiple images
     
@@ -417,19 +559,21 @@ def scan_for_multiple_images(image_names: list,
         bounding_box (Tuple[int, int, int, int]): (x, y, width, height) of search area
         threshold (float): Minimum confidence threshold for template matching
         images_folder (str): Path to the folder containing template images
+        animated_image (bool): If True, uses robust search for animated/transitioning UI elements
         
     Returns:
         Dict[str, Tuple[int, int]]: Dictionary mapping image names to click coordinates
     """
     scanner = ImageScanner(images_folder)
-    return scanner.scan_for_multiple_images(image_names, bounding_box, threshold)
+    return scanner.scan_for_multiple_images(image_names, bounding_box, threshold, animated_image)
 
 
 def scan_for_all_occurrences(image_name: str, 
                             bounding_box: Tuple[int, int, int, int],
                             threshold: float = 0.8,
                             click_offset: Tuple[int, int] = (0, 0),
-                            images_folder: str = "images") -> list:
+                            images_folder: str = "images",
+                            animated_image: bool = False) -> list:
     """
     Convenience function to scan for all occurrences of a single image
     
@@ -439,12 +583,13 @@ def scan_for_all_occurrences(image_name: str,
         threshold (float): Minimum confidence threshold for template matching
         click_offset (Tuple[int, int]): Offset from template center for click position
         images_folder (str): Path to the folder containing template images
+        animated_image (bool): If True, uses robust search for animated/transitioning UI elements
         
     Returns:
         list: List of (x, y) coordinates for all found instances
     """
     scanner = ImageScanner(images_folder)
-    return scanner.scan_for_all_images(image_name, bounding_box, threshold, click_offset)
+    return scanner.scan_for_all_images(image_name, bounding_box, threshold, click_offset, animated_image)
 
 
 def scan_image_with_bbox(automation_helper, image_name: str = "plus-collapsed.png", 
