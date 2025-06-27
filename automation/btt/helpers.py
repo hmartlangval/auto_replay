@@ -171,7 +171,7 @@ def select_countries(automation_helper, country_list=None):
                         print(f"❌ Failed to move down at step {step+1}")
                         return current_pos, False
                     current_pos += 1
-                    time.sleep(0.05)
+                    time.sleep(0.02)
                     
             elif steps_needed < 0:
                 # Move up
@@ -181,7 +181,7 @@ def select_countries(automation_helper, country_list=None):
                         print(f"❌ Failed to move up at step {step+1}")
                         return current_pos, False
                     current_pos -= 1
-                    time.sleep(0.05)
+                    time.sleep(0.02)
             
             # We should now be at the target position
             final_country = available_countries[current_pos]
@@ -236,7 +236,7 @@ def select_countries(automation_helper, country_list=None):
                 return False
             
             print(f"⏳ Waiting for UI to update after selection...")
-            time.sleep(1.5)  # Give UI time to update - remove item and adjust cursor position
+            time.sleep(0.8)  # Give UI time to update - remove item and adjust cursor position
             selected_count += 1
             
             # After selection: country is removed and cursor moves to position - 1
