@@ -503,7 +503,7 @@ test_session_name: some test session name
         Comment box - single text input.
         It means skip it if comment is None
         """
-        return self.__file_test_input_list_forms(["" if comment is None else comment])
+        return self.__fill_text_input_list_forms(["" if comment is None else comment])
     
     def confirm_final_information(self):
         """
