@@ -291,7 +291,7 @@ test_session_name: some test session name
         if value != "":
             sequence += f"{value}"
         
-        sequence += ",tab,tab,space"
+        sequence += ",tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
        
     
@@ -323,8 +323,8 @@ test_session_name: some test session name
         """
         Terminal ATM/Information - 3 text inputs and an extra button after each input.
         """
-        sequence = f"__0.2,tab,tab,{terminal_name},tab,tab,tab,{model_name},tab,tab,tab,{version_info},tab,tab,space"
-        return self.qf.parse_and_execute_sequence(sequence)
+        self.__fill_text_input_list_forms([terminal_name], 0, False)
+        return self.__fill_text_input_list_forms([model_name, version_info])
     
     def reference_number(self, first_value="1", second_value="2", third_value="3", fourth_value="4"):
         """
@@ -338,19 +338,20 @@ test_session_name: some test session name
             return False
 
         # Start sequence with first two inputs for contact testing, guaranteed we have minimum 2 inputs regardless
-        sequence = "__0.2,tab,tab{first_value},tab,tab,tab,{second_value}"
+        # sequence = "__0.2,tab,tab{first_value},tab,tab,{second_value}"
+        c = self.values["testing_contact"] is True
+        cl = self.values["testing_contactless"] is True
         
-        # You are now still in the 2nd text input
-        if self.values["testing_contactless"]:
-            if not self.values["testing_contact"]: # only contactless is true
-                pass
-            else: # both are true
-                sequence += ",tab,tab,tab,{third_value},tab,tab,tab,{fourth_value}"
-        else:
-            sequence += ",tab" # only contact is trueyou need to be at the next button.
-       
-        sequence += ",tab,space"
-        return self.qf.parse_and_execute_sequence(sequence)
+        # one true is 1 set, both true is 2 set, at least 1 is true always
+        set_count = 2 if c and cl else 1 if c or cl else 0
+        
+        if set_count == 1:
+            return self.__fill_text_input_list_forms([first_value, second_value])
+        elif set_count == 2:
+            return self.__fill_text_input_list_forms([first_value, second_value, third_value, fourth_value])
+        
+        print("failed to fill reference number as set_count is:", set_count)
+        return False
     
     def contactless_atm_information(self, atm1_name="ATM1", atm2_name="ATM2"):
         """
@@ -360,7 +361,7 @@ test_session_name: some test session name
         return self.qf.parse_and_execute_sequence(sequence)
     
     
-    def __file_test_input_list_forms(self, values:list[str], last_button_tab_count:int = 0, go_next:bool = True):
+    def __fill_text_input_list_forms(self, values:list[str], last_button_tab_count:int = 0, go_next:bool = True):
         """
         Fill the test input list forms with the given values.
         """
@@ -373,13 +374,15 @@ test_session_name: some test session name
                 sequence = self.__set_text_input_value(sequence, values[i], last_button_tab_count if i == len(values)-1 else 2)
         if go_next:
             sequence += ",tab,space"
+            
+        print("fill_text_input_list_forms: sequence before execution: ", sequence)
         return self.qf.parse_and_execute_sequence(sequence)
     
     def __set_text_input_value(self, sequence: str, value: str, followed_by_tab_count: int = 0):
         """
         Set the text input value to the given value.
         """
-        sequence += f"{value}"
+        sequence += f",{value}"
         sequence += ",{tab}" * followed_by_tab_count
         return sequence
     
