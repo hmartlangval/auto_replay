@@ -320,12 +320,23 @@ test_session_name: some test session name
         else:
             return self.qf.parse_and_execute_sequence("__0.2,tab,tab,{down},tab,space")
     
+    def check_for_use_suggested_value(self):
+        """
+        Check for use suggested value button.
+        """
+        return scan_for_image("use-suggested-value-btn.png", self.current_window.get_bbox(), threshold=0.8)
+    
     def terminal_atm_information(self, terminal_name="terminal name", model_name="model name", version_info="version info"):
         """
         Terminal ATM/Information - 3 text inputs and an extra button after each input.
         """
-        self.__fill_text_input_list_forms([terminal_name], 0, False)
-        return self.__fill_text_input_list_forms([model_name, version_info])
+        
+        # sometimes the suggestion shows up sometimes it don't, and if it shows up, it shows for all
+        use_suggested_value = self.check_for_use_suggested_value()
+        self.__fill_text_input_list_forms(
+            values=[terminal_name, model_name, version_info], 
+            last_button_tab_count= 1 if use_suggested_value else 0, 
+            tabs_between_inputs=3 if use_suggested_value else 2)
     
     def reference_number(self, first_value="1", second_value="2", third_value="3", fourth_value="4"):
         """
@@ -346,10 +357,12 @@ test_session_name: some test session name
         # one true is 1 set, both true is 2 set, at least 1 is true always
         set_count = 2 if c and cl else 1 if c or cl else 0
         
+        use_suggested_value = self.check_for_use_suggested_value()
+        
         if set_count == 1:
-            return self.__fill_text_input_list_forms([first_value, second_value])
+            return self.__fill_text_input_list_forms([first_value, second_value], tabs_between_inputs=3 if use_suggested_value else 2)
         elif set_count == 2:
-            return self.__fill_text_input_list_forms([first_value, second_value, third_value, fourth_value])
+            return self.__fill_text_input_list_forms([first_value, second_value, third_value, fourth_value], tabs_between_inputs=3 if use_suggested_value else 2)
         
         print("failed to fill reference number as set_count is:", set_count)
         return False
@@ -362,7 +375,7 @@ test_session_name: some test session name
         return self.qf.parse_and_execute_sequence(sequence)
     
     
-    def __fill_text_input_list_forms(self, values:list[str], last_button_tab_count:int = 0, go_next:bool = True):
+    def __fill_text_input_list_forms(self, values:list[str], last_button_tab_count:int = 0, go_next:bool = True, tabs_between_inputs:int = 2):
         """
         Fill the test input list forms with the given values.
         """
@@ -372,7 +385,7 @@ test_session_name: some test session name
             sequence += ",tab" * last_button_tab_count
         else:        
             for i in range(len(values)):
-                sequence = self.__set_text_input_value(sequence, values[i], last_button_tab_count if i == len(values)-1 else 2)
+                sequence = self.__set_text_input_value(sequence, values[i], last_button_tab_count if i == len(values)-1 else tabs_between_inputs)
         if go_next:
             sequence += ",tab,space"
             
