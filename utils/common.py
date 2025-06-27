@@ -196,13 +196,20 @@ def click_apply_ok_button(window_title: str):
     # Wait a moment for any ongoing animations to settle
     time.sleep(0.3)
     
+    # Get bounding box and convert from (left, top, right, bottom) to (x, y, width, height)
+    bbox = window.get_bbox()
+    left, top, right, bottom = bbox
+    bounding_box = (left, top, right - left, bottom - top)
+    
+    print(f"🔍 Window bbox: {bbox} -> converted to: {bounding_box}")
+    
     # Use the centralized image scanner with animated_image=True
     from utils.image_scanner import scan_for_image
     
     # Find Apply button using animated search
     apply_location = scan_for_image(
         "apply-btn-normal.png", 
-        window.get_bbox(), 
+        bounding_box,  # Now properly converted
         threshold=0.8, 
         animated_image=True
     )
@@ -210,7 +217,7 @@ def click_apply_ok_button(window_title: str):
     # Find OK button using animated search  
     ok_location = scan_for_image(
         "ok-btn-normal.png", 
-        window.get_bbox(), 
+        bounding_box,  # Now properly converted
         threshold=0.8, 
         animated_image=True
     )

@@ -372,6 +372,43 @@ class BrandTestToolAutomation:
         print('Task completed. Exiting...')
         exit()
     
+    def fill_questionnaire_v2(self, questionnaire_window, forms_class=None):
+        # Initialize the questionnaire filler with specified forms class
+        
+        # Steps:
+        execution_steps = """
+            # File-based execution steps
+            country: [United States (US)]
+            # processor_name: File-based Processor
+            # user_tester_information: File Tester, file@test.com
+            # testing_details: true, true
+            # deployment_type: 1
+            # terminal_implementation: true
+            # visa_products_accepted: true, true, true
+            # merchant_information:
+            # terminal_atm_information: Ingenico, DESK/5000, Test application V1
+            # reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
+            # contact_chip_oda: true, true, true, false, false, true
+            # contact_only_features: false, true, false
+            # contactless_chip_cvms: true, true, true, false
+            # contactless_only_features: false
+            # fleet_2_0: false
+            # comment_box:
+            # confirm_final_information:
+            # sleep: 2
+            # apply_ok:
+            """
+        
+        qf = QuestionnaireFiller(questionnaire_window, forms_class=forms_class)
+        forms = qf.questionnaire_forms
+        print("🚀 Execution using steps loaded from custom defined steps:")
+        result = qf.execute(execution_steps)
+        
+        if result:
+            print("✅ File-based approach completed successfully\n")
+        else:
+            print("❌ File-based approach failed\n")
+    
     def execute_all_steps(self):
         """Execute all steps in sequence"""
         print(f"🚀 Starting {self.window_title} automation...")
@@ -379,10 +416,10 @@ class BrandTestToolAutomation:
         if not self.window_handle:
             return False
      
-        # if not self.create_new_project():
-        #     return False
+        if not self.create_new_project():
+            return False
        
-        # time.sleep(1)
+        time.sleep(1)
         
         if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
@@ -398,8 +435,16 @@ class BrandTestToolAutomation:
         project_setup_window_handle.keys("{space}")
         time.sleep(1) # gives time for the right panel to get populated
         
+        # click on start test
+        questionnaire_window = start_questionnaire(project_setup_window_handle)
+        if not questionnaire_window:
+            print("❌ No questionnaire window found")
+            return False
+        
+        time.sleep(1)
+        
         # Option 1: Use default forms with manual method calls
-        self.fill_questionnaire(project_setup_window_handle)
+        self.fill_questionnaire_v2(questionnaire_window)
         
         # Option 2: Use declarative execution (uncomment to use)
         # qf = QuestionnaireFiller(project_setup_window_handle)
@@ -467,18 +512,18 @@ if __name__ == "__main__":
     # Create automation instance
     btt_automation = BrandTestToolAutomation()
     
-    if not (edit_window := ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
-        print("❌ No edit window found")
-        exit()
+    # if not (edit_window := ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
+    #     print("❌ No edit window found")
+    #     exit()
     
-    # Option 1: Use default forms
-    btt_automation.fill_questionnaire(edit_window)
+    # # Option 1: Use default forms
+    # btt_automation.fill_questionnaire(edit_window)
     
     # Option 2: Use custom forms (uncomment to use)
     # btt_automation.fill_questionnaire(edit_window, forms_class=CustomQuestionnaireForms)
     
     # Option 1: Execute all steps at once
-    # btt_automation.execute_all_steps()
+    btt_automation.execute_all_steps()
     
     # Option 2: Execute functions individually for full control
     # btt_automation.send_navigation_keys()
