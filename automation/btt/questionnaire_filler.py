@@ -68,8 +68,8 @@ class QuestionnaireFiller:
             bool: True if successful, False otherwise
         """
         try:
-            # Split by comma and clean up whitespace
-            commands = [cmd.strip() for cmd in sequence_text.split(',')]
+            # Split by comma but preserve content inside parentheses
+            commands = self._smart_split_sequence(sequence_text)
             
             for command in commands:
                 if not command:
@@ -85,6 +85,41 @@ class QuestionnaireFiller:
         except Exception as e:
             print(f"❌ Error executing sequence: {e}")
             return False
+    
+    def _smart_split_sequence(self, sequence_text):
+        """
+        Split sequence by commas but preserve content inside parentheses.
+        
+        Args:
+            sequence_text (str): Comma-separated sequence
+            
+        Returns:
+            list: List of commands with parentheses content preserved
+        """
+        commands = []
+        current_command = ""
+        paren_depth = 0
+        
+        for char in sequence_text:
+            if char == '(':
+                paren_depth += 1
+                current_command += char
+            elif char == ')':
+                paren_depth -= 1
+                current_command += char
+            elif char == ',' and paren_depth == 0:
+                # Only split on comma if we're not inside parentheses
+                if current_command.strip():
+                    commands.append(current_command.strip())
+                current_command = ""
+            else:
+                current_command += char
+        
+        # Add the last command
+        if current_command.strip():
+            commands.append(current_command.strip())
+        
+        return commands
     
     def _execute_command(self, command):
         """
@@ -151,9 +186,13 @@ class QuestionnaireFiller:
             # Extract image name
             image_name = image_part[4:]  # Remove 'img:' prefix
             
-            # Check if image exists
+            # Get bounding box and convert from (left, top, right, bottom) to (x, y, width, height)
             bbox = self.automation_helper.get_bbox()
-            image_location = scan_for_image(image_name, bbox, threshold=0.8)
+            left, top, right, bottom = bbox
+            bounding_box = (left, top, right - left, bottom - top)
+            
+            # Check if image exists using animated search for better reliability
+            image_location = scan_for_image(image_name, bounding_box, threshold=0.8, animated_image=True)
             
             if image_location:
                 print(f"✅ Image '{image_name}' found, executing action: {action}")

@@ -260,7 +260,8 @@ test_session_name: some test session name
         sequence += ",tab"
         if check_second:
             sequence += ",{space}"
-        sequence += ",tab,tab,space"
+            
+        sequence += ",(img:use-suggested-value-btn.png,tab),tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
     def deployment_type(self, dropdown_down_count: str = "0"):
