@@ -388,7 +388,8 @@ class BrandTestToolAutomation:
             merchant_information:
             terminal_atm_information: Ingenico, DESK/5000, Test application V1
             reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
-            contact_chip_oda: true, true, true, false, false, true
+            contact_chip_oda: true
+            contact_chip_cvm: true, true, true, false, false, true
             contact_only_features: false, true, false
             contactless_chip_cvms: true, true, true, false
             contactless_only_features: false
