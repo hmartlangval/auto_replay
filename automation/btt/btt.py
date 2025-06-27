@@ -390,7 +390,7 @@ class BrandTestToolAutomation:
             reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
             contact_chip_oda: true
             contact_chip_cvm: true, true, true, false, false, true
-            contact_only_features: false, true, false
+            contact_only_features: false, true, true
             contactless_chip_cvms: true, true, true, false
             contactless_only_features: false
             fleet_2_0: false
@@ -508,14 +508,43 @@ class BrandTestToolAutomation:
         print("🔄 Automation state reset")
 
 
+# CUSTOM_MODE = "START_FROM_CUSTOM"
+CUSTOM_MODE = "START_FROM_CLICK_START_TEST"
+
 # Example usage
 if __name__ == "__main__":
     # Create automation instance
     btt_automation = BrandTestToolAutomation()
     
-    # if not (edit_window := ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
-    #     print("❌ No edit window found")
-    #     exit()
+    if CUSTOM_MODE and CUSTOM_MODE != "":
+        if not (pwin := ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)):
+            print("❌ No project settings window found")
+            exit()
+        
+        if CUSTOM_MODE == "START_FROM_CUSTOM":
+            if not (edit_window := ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
+                print("❌ No edit window found")
+                exit()
+            qf = QuestionnaireFiller(edit_window)
+            qf.questionnaire_forms.values["testing_contact"] = True
+            qf.questionnaire_forms.values["testing_contactless"] = True
+            qf.execute("""
+                    # terminal_atm_information: Ingenico, DESK/5000, Test application V1
+                    # reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
+                    # #    testing_details: true, true
+                    #    deployment_type: 1
+                    #    terminal_implementation: true
+                    #    visa_products_accepted: true, true, true
+                    """)
+        elif CUSTOM_MODE == "START_FROM_CLICK_START_TEST":
+            if not (edit_window := start_questionnaire(pwin, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
+                print("❌ No edit window found")
+                exit()
+            qf = QuestionnaireFiller(edit_window)
+            btt_automation.fill_questionnaire_v2(edit_window)
+            
+        print("Custom Mode Execution completed.")
+        exit(0)
     
     # # Option 1: Use default forms
     # btt_automation.fill_questionnaire(edit_window)
