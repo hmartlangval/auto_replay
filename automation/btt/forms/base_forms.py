@@ -40,6 +40,42 @@ class BaseQuestionnaireForms:
     declarative form execution via the execute() method.
     """
     
+    # ui_label_mapping = """
+    # UI Navigation Hierarchy
+    # region_selection
+    #   country
+    # acquirer_information
+    #   processor_name
+    # user_tester_information
+    #   contact_name
+    #   contact_email
+    # testing
+    #   contact_testing
+    #   contactless_testing
+    # deployment_type
+    #   deployment_type
+    # terminal_implementation
+    #   quick_chip
+    # visa_products_accepted
+    #   common_debit_aid_supported
+    #   interlink_supported_on_contact
+    #   interlink_supported_on_contactless
+    # merchant_information
+    #   merchant_name
+    # terminal_atm_information
+    #   terminal_name
+    #   terminal_model
+    #   payment_app_name_version
+    # contactless_atm_information
+    #   contactless_atm_information
+    # 2. Processor Name
+    # 3. User/Tester Information
+    # 4. Testing Details
+    # 5. Deployment Type
+    # 6. Merchant Information
+    # """
+    
+    
     # Default execution steps - child classes can override this
     execution_steps = """
 # Use [item1, item2] format for methods expecting lists
@@ -68,6 +104,10 @@ test_session_name: some test session name
         """
         self.current_window = current_window
         self.qf = questionnaire_filler
+        self.values = {
+            "testing_contact": False,
+            "testing_contactless": False
+        }
     
     def parse_execution_steps(self, steps_text=None):
         """
@@ -208,6 +248,8 @@ test_session_name: some test session name
         """
         Testing details - two checkboxes and an extra button for more information.
         """
+        self.values["testing_contact"] = check_first
+        self.values["testing_contactless"] = check_second
         sequence = "__0.2,tab,tab"
         if check_first:
             sequence += ",{space}"
@@ -217,33 +259,51 @@ test_session_name: some test session name
         sequence += ",tab,tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
-    def deployment_type(self, dropdown_down_count: int = 0):
+    def deployment_type(self, dropdown_down_count: str = "0"):
         """
         Deployment type - dropdown input, down arrow to select the item.
         """
+        try:
+            dropdown_down_count = int(dropdown_down_count)
+        except ValueError:
+            print(f"❌ Invalid dropdown count value: {dropdown_down_count}")
+            return False
+        
         # Get number of down presses needed based on index
         down_sequence = ",{down}" * dropdown_down_count if dropdown_down_count > 0 else ""
         
         sequence = f"__0.2,tab,tab{down_sequence},__0.2,tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
-    def merchant_information(self, value:str = None):
+    def merchant_information(self, value:str = "-SKIP-"):
         """
         Merchant Information with optional field of 1 text input.
         """
         sequence = "__0.2,tab,tab"
-        if value:
-            sequence += f"{value},"
-        sequence += "tab,tab,space"
+        
+        value = value.strip()
+        
+        if value is not "-SKIP-" and value != "":
+            sequence += f"{value}"
+        
+        sequence += ",tab,tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
+       
     
     def visa_products_accepted(self, first_true=True, second_true=True, third_true=True):
-        """Three sets of radio inputs"""
+        """Similar implementation as Reference Number
+        There is minimum 2 radio groups, if only one of contact and contactless are true.
+        And 3 radio groups if both are true.
+        
+        """
         first_key = "{space}" if first_true else "{down}"
         second_key = "{space}" if second_true else "{down}"
         third_key = "{space}" if third_true else "{down}"
         
-        sequence = f"__0.2,tab,tab,{first_key},tab,tab,{second_key},tab,tab,{third_key},tab,space"
+        sequence = f"__0.2,tab,tab,{first_key},tab,tab,{second_key}"
+        if self.values["testing_contact"] and self.values["testing_contactless"]:
+            sequence += ",tab,tab,{third_key}"
+        sequence += ",tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
     def terminal_implementation(self, isTrue=True):
@@ -261,11 +321,28 @@ test_session_name: some test session name
     
     def reference_number(self, first_value="1", second_value="2", third_value="3", fourth_value="4"):
         """
-        Reference number - 4 text inputs.
-        first 3 has button next to it.
-        last has none
+        Reference number - 
+            2 input text + button next to it if testing contact is True
+            2 input text + button next (only on first one) to it if testing contactless is True
+            And required that ONE Of these will be true or both
         """
-        sequence = f"__0.2,tab,tab,{first_value},tab,tab,tab,{second_value},tab,tab,tab,{third_value},tab,tab,tab,{fourth_value},tab,space"
+        if not (self.values["testing_contact"] or self.values["testing_contactless"]):
+            print("❌ Either testing_contact or testing_contactless must be True")
+            return False
+
+        # Start sequence with first two inputs for contact testing, guaranteed we have minimum 2 inputs regardless
+        sequence = "__0.2,tab,tab{first_value},tab,tab,tab,{second_value}"
+        
+        # You are now still in the 2nd text input
+        if self.values["testing_contactless"]:
+            if not self.values["testing_contact"]: # only contactless is true
+                pass
+            else: # both are true
+                sequence += ",tab,tab,tab,{third_value},tab,tab,tab,{fourth_value}"
+        else:
+            sequence += ",tab" # only contact is trueyou need to be at the next button.
+       
+        sequence += ",tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
     def contactless_atm_information(self, atm1_name="ATM1", atm2_name="ATM2"):
@@ -275,37 +352,131 @@ test_session_name: some test session name
         sequence = f"__0.2,tab,tab,{atm1_name},tab,tab,{atm2_name},tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
-    def contact_chip_oda(self, select_first=True, select_second=True):
+    
+    def __file_test_input_list_forms(self, values:list[str], last_button_tab_count:int = 0, go_next:bool = True):
+        """
+        Fill the test input list forms with the given values.
+        """
+        sequence = "__0.2,tab,tab"
+        if len(values) == 0:
+            # we are skipping this directly without any input
+            sequence += ",tab" * last_button_tab_count
+        else:        
+            for i in range(len(values)):
+                sequence = self.__set_text_input_value(sequence, values[i], last_button_tab_count if i == len(values)-1 else 2)
+        if go_next:
+            sequence += ",tab,space"
+        return self.qf.parse_and_execute_sequence(sequence)
+    
+    def __set_text_input_value(self, sequence: str, value: str, followed_by_tab_count: int = 0):
+        """
+        Set the text input value to the given value.
+        """
+        sequence += f"{value}"
+        sequence += ",{tab}" * followed_by_tab_count
+        return sequence
+    
+    def __fill_radio_list_forms(self, values:list[bool], last_button_tab_count:int = 0, go_next:bool = True):
+        """
+        Fill the radio forms with the given values.
+        """
+        sequence = "__0.2,tab,tab"
+        for i in range(len(values)):
+            sequence = self.__set_radio_value(sequence, values[i], last_button_tab_count if i == len(values)-1 else 2)
+        if go_next:
+            sequence += ",tab,space"
+        return self.qf.parse_and_execute_sequence(sequence)
+            
+    def __set_radio_value(self, sequence: str, isTrue: bool, followed_by_tab_count: int = 0):
+        """
+        Set the radio value to True or False.
+        """
+        if isTrue:
+            sequence += ",{space}"
+        else:
+            sequence += ",{down}"
+        sequence += ",{tab}" * followed_by_tab_count
+        return sequence
+    
+    def __fill_dropdown_list_forms(self, values:list[str], last_button_tab_count:int = 0, go_next:bool = True):
+        """
+        Fill the dropdown forms with the given values.
+        """
+        sequence = "__0.2,tab,tab"
+        for i in range(len(values)):
+            sequence = self.__set_dropdown_value(sequence, values[i], last_button_tab_count if i == len(values)-1 else 2)
+        if go_next:
+            sequence += ",tab,space"
+        return self.qf.parse_and_execute_sequence(sequence)
+            
+    def __set_dropdown_value(self, sequence: str, position_in_list: int = 1, followed_by_tab_count: int = 0):
+        """
+        Set the dropdown value to the given value.
+        """
+        sequence += ",{down}" * position_in_list
+        sequence += ",{tab}" * followed_by_tab_count
+        return sequence
+    
+    def pin_opt_out_mechanism(self, first_position=1, second_position=1):
+        """
+        PIN opt-out mechanism - 2 sets of dropdown inputs.
+        """
+        return self.__fill_dropdown_list_forms([first_position, second_position])
+    
+    def fleet_2_0(self, first=True):
+        """
+        Fleet 2.0 - 1 sets of radio inputs.
+        """
+        return self.__fill_radio_list_forms([first])
+    
+    def contact_chip_oda(self, isDDA=True):
         """
         Contact chip offline data authentication (ODA) - radio input with conditional button.
         """
         sequence = "__0.2,tab,tab"
-        if select_first:
-            sequence += ",{space}"
-        if select_second:
-            sequence += ",{down}"
-        sequence += ",(img:oda-screen.png,tab),tab,space"
+        sequence = self.__set_radio_value(sequence, isDDA)
+        # if select_second:
+        #     sequence += ",{down}"
+        # sequence += ",(img:oda-screen.png,tab),tab,space"
         return self.qf.parse_and_execute_sequence(sequence)
     
-    def contact_only_features(self, select_first_set=True, select_second_set=True):
+    def contact_chip_cvm(self, first=False, second=False, third=None, fourth=None, fifth=None, sixth=None):
+        """
+        Contact chip card verification method (CVM) - radio input with conditional button.
+        """
+        values = [first, second, third, fourth, fifth, sixth]
+        return self.__fill_radio_list_forms(values, 1)
+    
+    def contactless_chip_cvms(self, first=False, second=False, third=None, fourth=None):
+        """
+        Contactless chip card verification method (CVM) - radio input with conditional button.
+        """
+        first_set = [first]
+        self.__fill_radio_list_forms(first_set, 1, False) # False indicates we are not finishing the page yet
+        
+        second_set = [second, third, fourth]
+        return self.__fill_radio_list_forms(second_set, 1)
+    
+    def contact_only_features(self, first=True, second=True, third=True):
         """
         Contact Only features - 2 sets of radio inputs.
         """
-        sequence = "__0.2,tab,tab"
-        if select_first_set:
-            sequence += ",{space}"
-        sequence += ",tab,tab"
-        if select_second_set:
-            sequence += ",{space}"
-        sequence += ",tab,space"
-        return self.qf.parse_and_execute_sequence(sequence)
+        values = [first, second, third]
+        return self.__fill_radio_list_forms(values)
     
-    def comment_box(self, comment="some comment"):
+    def contactless_only_features(self, first=True):
+        """
+        Contactless Only features - 1 set of radio inputs.
+        """
+        values = [first]
+        return self.__fill_radio_list_forms(values)
+    
+    def comment_box(self, comment=None):
         """
         Comment box - single text input.
+        It means skip it if comment is None
         """
-        sequence = f"__0.2,tab,tab,{comment},tab,space"
-        return self.qf.parse_and_execute_sequence(sequence)
+        return self.__file_test_input_list_forms(["" if comment is None else comment])
     
     def confirm_final_information(self):
         """

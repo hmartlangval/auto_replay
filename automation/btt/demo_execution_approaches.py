@@ -121,17 +121,27 @@ confirm_final_information:
 test_session_name: File-based Test Session
 """
     custom_steps = """
-# File-based execution steps
-country: [United States (US)]
-processor_name: File-based Processor
-user_tester_information: File Tester, file@test.com
-testing_details: true, false
-deployment_type: 1
-terminal_implementation: true
-visa_products_accepted: true, false, false
 merchant_information:
-terminal_atm_information: terminal name, model name, version info
-reference_number: 1,2,3333,4444
+comment_box:
+confirm_final_information:
+# File-based execution steps
+# country: [United States (US)]
+# processor_name: File-based Processor
+# user_tester_information: File Tester, file@test.com
+# testing_details: true, true
+# deployment_type: 1
+# terminal_implementation: true
+# visa_products_accepted: true, true, true
+# merchant_information:
+# terminal_atm_information: Ingenico, DESK/5000, Test application V1
+# reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
+# contact_chip_oda: true, true, true, false, false, true
+# contact_only_features: false, true, false
+# contactless_chip_cvms: true, true, true, false
+# contactless_only_features: false
+# fleet_2_0: false
+# comment_box:
+# confirm_final_information:
 """
     
     edit_window = ManualAutomationHelper(target_window_title="Edit EMVCo", title_starts_with=True)
