@@ -379,24 +379,24 @@ class BrandTestToolAutomation:
         execution_steps = """
             # File-based execution steps
             country: [United States (US)]
-            # processor_name: File-based Processor
-            # user_tester_information: File Tester, file@test.com
-            # testing_details: true, true
-            # deployment_type: 1
-            # terminal_implementation: true
-            # visa_products_accepted: true, true, true
-            # merchant_information:
-            # terminal_atm_information: Ingenico, DESK/5000, Test application V1
-            # reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
-            # contact_chip_oda: true, true, true, false, false, true
-            # contact_only_features: false, true, false
-            # contactless_chip_cvms: true, true, true, false
-            # contactless_only_features: false
-            # fleet_2_0: false
-            # comment_box:
-            # confirm_final_information:
-            # sleep: 2
-            # apply_ok:
+            processor_name: File-based Processor
+            user_tester_information: File Tester, file@test.com
+            testing_details: true, true
+            deployment_type: 1
+            terminal_implementation: true
+            visa_products_accepted: true, true, true
+            merchant_information:
+            terminal_atm_information: Ingenico, DESK/5000, Test application V1
+            reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
+            contact_chip_oda: true, true, true, false, false, true
+            contact_only_features: false, true, false
+            contactless_chip_cvms: true, true, true, false
+            contactless_only_features: false
+            fleet_2_0: false
+            comment_box:
+            confirm_final_information:
+            sleep: 2
+            apply_ok:
             """
         
         qf = QuestionnaireFiller(questionnaire_window, forms_class=forms_class)
@@ -436,7 +436,7 @@ class BrandTestToolAutomation:
         time.sleep(1) # gives time for the right panel to get populated
         
         # click on start test
-        questionnaire_window = start_questionnaire(project_setup_window_handle)
+        questionnaire_window = start_questionnaire(project_setup_window_handle, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")
         if not questionnaire_window:
             print("❌ No questionnaire window found")
             return False

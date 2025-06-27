@@ -184,11 +184,11 @@ def show_modal_input_dialog(root, title, prompt, initial_value=""):
     return result[0]
 
 
-def click_apply_ok_button(window_title: str):
+def click_apply_ok_button(current_window=None, window_title: str=None):
     """
     Click on the Apply OK button using centralized animated image detection.
     """
-    window = ManualAutomationHelper(target_window_title=window_title, title_starts_with=True)
+    window = current_window if current_window else ManualAutomationHelper(target_window_title=window_title, title_starts_with=True)
     if not window:
         print(f"❌ No window found for {window_title}")
         return
@@ -231,6 +231,7 @@ def click_apply_ok_button(window_title: str):
         print("🖱️ Clicking OK button...")
         window.click(ok_location)
         print("✅ Successfully clicked Apply and OK buttons")
+        return True
     else:
         missing = []
         if not apply_location:
@@ -238,6 +239,5 @@ def click_apply_ok_button(window_title: str):
         if not ok_location:
             missing.append("OK")
         print(f"❌ Could not find {', '.join(missing)} button(s)")
-        
-    return window
-
+        return False
+    

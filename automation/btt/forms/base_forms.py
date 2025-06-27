@@ -7,6 +7,8 @@ import time
 import sys
 import os
 
+
+
 # Add paths to allow imports when running directly
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
@@ -16,6 +18,8 @@ try:
     from ..helpers import select_countries
 except ImportError:
     from helpers import select_countries
+
+from utils.common import click_apply_ok_button
 
 # Make image scanner import optional
 try:
@@ -520,4 +524,5 @@ test_session_name: some test session name
         This will be replaced with image or other reliable approach in future
         
         """
-        return self.qf.parse_and_execute_sequence("__0.2,tab,space,{shift+tab},space")
+        return click_apply_ok_button(self.current_window)
+        # return self.qf.parse_and_execute_sequence("__0.2,tab,space,{shift+tab},space")

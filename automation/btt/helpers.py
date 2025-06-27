@@ -3,7 +3,7 @@ import time
 from utils.image_scanner import scan_for_image
 from utils.windows_automation import ManualAutomationHelper
 
-def start_questionnaire(automator, window_title: str):
+def start_questionnaire(automator, questionnaire_window_title: str):
     """
     Fill a questionnaire with the given name.
     """
@@ -25,8 +25,8 @@ def start_questionnaire(automator, window_title: str):
     time.sleep(2)
     
     # Now we are in the Edit EMVCo L3 Test Session - Questionnaire window
-    if not (edit_window := ManualAutomationHelper(target_window_title=window_title)):
-        print(f"❌ No {window_title} window found")
+    if not (edit_window := ManualAutomationHelper(target_window_title=questionnaire_window_title)):
+        print(f"❌ No {questionnaire_window_title} window found")
         return None
     # Expected bounding box is BoundingRectangle:	{l:71 t:65 r:1270 b:707}
     edit_window.setup_window(bbox=(71, 65, 1270, 707))
