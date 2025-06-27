@@ -10,6 +10,7 @@ This demonstrates the flexibility of the forms system:
 import sys
 import os
 
+
 # Add parent directories to path to allow imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(os.path.dirname(__file__))
@@ -17,7 +18,7 @@ sys.path.append(os.path.dirname(__file__))
 from questionnaire_filler import QuestionnaireFiller
 from forms import DefaultQuestionnaireForms, CustomQuestionnaireForms
 from utils import ManualAutomationHelper
-
+from utils.common import click_apply_ok_button
 
 def demo_manual_approach():
     """
@@ -195,7 +196,28 @@ if __name__ == "__main__":
     # demo_manual_approach()
     # demo_declarative_approach() 
     # demo_custom_declarative_approach()
-    demo_file_based_execution()
+    # demo_file_based_execution()
+    
+    # At this stage the dialog is OK is already pressed
+    # Back to the Project Settings Page, we are going to click on Apply OK again one more time
+    # new_project_window = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
+    # if not new_project_window:
+    #     print("❌ No window found for demo")
+    #     exit()
+    
+    click_apply_ok_button("Project Settings")
+    
+    # Try both normal and focused apply button images
+    # apply_button_location = scan_for_image("apply-btn-normal.png", new_project_window.get_bbox(), threshold=0.8)
+    # if not apply_button_location:
+    #     apply_button_location = scan_for_image("apply-btn-focussed.png", new_project_window.get_bbox(), threshold=0.8)
+        
+    # if apply_button_location:
+    #     print(f"Apply button found at {apply_button_location}")
+    #     new_project_window.click(apply_button_location)
+    # else:
+    #     print("Apply button not found")
+    
     
     print("💡 Summary:")
     print("1. Manual: Maximum flexibility, step-by-step control")
