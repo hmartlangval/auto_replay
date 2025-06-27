@@ -6,6 +6,7 @@ import threading
 import platform
 import signal
 import sys
+import subprocess
 from dotenv import load_dotenv
 from utils.code_generator import (
     generate_file_header, generate_imports, generate_screen_detection_function,
@@ -24,6 +25,7 @@ APP_TITLE = os.getenv("APP_TITLE")
 # Global variables
 root = None
 shutdown_in_progress = False
+spawned_processes = []  # Track all spawned subprocess processes
 
 try:
     from pynput import mouse, keyboard
@@ -498,9 +500,11 @@ def run_notepad_automation():
         
         if os.path.exists(script_path):
             print("🚀 Running Notepad automation...")
-            # Run the script in a separate process
-            subprocess.Popen([sys.executable, script_path], 
-                           cwd=os.path.dirname(__file__))
+            # Run the script in a separate process and track it
+            process = subprocess.Popen([sys.executable, script_path], 
+                                     cwd=os.path.dirname(__file__))
+            spawned_processes.append(process)
+            print(f"   • Process started with PID: {process.pid}")
             # messagebox.showinfo("Automation Started", "Notepad automation script has been launched!")
         else:
             messagebox.showerror("Error", f"Notepad automation script not found at:\n{script_path}")
@@ -519,9 +523,11 @@ def run_btt_automation():
         
         if os.path.exists(script_path):
             print("🚀 Running BTT automation...")
-            # Run the script in a separate process
-            subprocess.Popen([sys.executable, script_path], 
-                           cwd=os.path.dirname(__file__))
+            # Run the script in a separate process and track it
+            process = subprocess.Popen([sys.executable, script_path], 
+                                     cwd=os.path.dirname(__file__))
+            spawned_processes.append(process)
+            print(f"   • Process started with PID: {process.pid}")
             # messagebox.showinfo("Automation Started", "BTT automation script has been launched!")
         else:
             messagebox.showerror("Error", f"BTT automation script not found at:\n{script_path}")
@@ -590,55 +596,111 @@ def get_suggested_sequence_name():
     """Get a unique suggested name for the sequence using utility"""
     return generate_suggested_name()
 
+def kill_all_spawned_processes():
+    """Force kill all spawned processes"""
+    global spawned_processes
+    killed_count = 0
+    
+    for process in spawned_processes[:]:  # Create a copy to iterate over
+        try:
+            if process.poll() is None:  # Process is still running
+                print(f"   • Terminating process PID: {process.pid}")
+                process.terminate()
+                
+                # Wait up to 2 seconds for graceful termination
+                try:
+                    process.wait(timeout=2)
+                    print(f"     ✅ Process {process.pid} terminated gracefully")
+                except subprocess.TimeoutExpired:
+                    # Force kill if it doesn't terminate gracefully
+                    print(f"     🔪 Force killing process {process.pid}")
+                    process.kill()
+                    process.wait()  # Clean up zombie
+                    print(f"     ✅ Process {process.pid} force killed")
+                
+                killed_count += 1
+            else:
+                print(f"   • Process PID {process.pid} already terminated")
+            
+            spawned_processes.remove(process)
+            
+        except (ProcessLookupError, PermissionError) as e:
+            print(f"   ⚠️ Process {process.pid} already gone: {e}")
+            try:
+                spawned_processes.remove(process)
+            except ValueError:
+                pass
+        except Exception as e:
+            print(f"   ❌ Error killing process {process.pid}: {e}")
+    
+    if killed_count > 0:
+        print(f"   • Successfully terminated {killed_count} processes")
+    else:
+        print("   • No active processes to terminate")
 
 def on_closing():
-    """Handle window closing - called by both X button and Ctrl+C"""
-    global recorder, root
-    
-    # Prevent double-destroy
-    if not root or not root.winfo_exists():
-        return
-    
-    print("\n🛑 Graceful shutdown initiated...")
-    
-    try:
-        # Stop any active recording
-        if 'recorder' in globals() and recorder and recorder.recording:
-            print("   • Stopping active recording...")
-            recorder.stop_recording()
-        
-        print("✅ Graceful shutdown completed successfully!")
-        
-    except Exception as e:
-        print(f"⚠️  Warning during shutdown: {e}")
-    
-    # Let tkinter handle the rest - it knows how to clean up properly
-    try:
-        root.destroy()
-    except tk.TclError:
-        # Already destroyed, that's fine
-        pass
-
-def signal_handler(signum, frame):
-    """Handle Ctrl+C and other signals - immediate shutdown"""
-    global shutdown_in_progress
+    """Handle window closing - THE ULTIMATE SHUTDOWN BUTTON"""
+    global recorder, root, shutdown_in_progress
     
     # Prevent multiple shutdown attempts
     if shutdown_in_progress:
         return
         
     shutdown_in_progress = True
-    print(f"\n🔄 Received signal {signum}, shutting down immediately...")
     
-    # Stop any active recording
+    # Prevent double-destroy
+    if not root or not root.winfo_exists():
+        return
+    
+    print("\n🛑 ULTIMATE SHUTDOWN INITIATED...")
+    print("   🔪 This will terminate ALL operations immediately!")
+    
     try:
+        # Stop any active recording
         if 'recorder' in globals() and recorder and recorder.recording:
-            recorder.stop_recording()
-    except:
+            print("   • Stopping active recording...")
+            try:
+                recorder.stop_recording()
+                print("     ✅ Recording stopped")
+            except Exception as e:
+                print(f"     ⚠️ Error stopping recording: {e}")
+        
+        # Kill all spawned automation processes
+        print("   • Terminating all spawned automation processes...")
+        kill_all_spawned_processes()
+        
+        # Stop any mouse/keyboard listeners that might still be running
+        try:
+            if 'recorder' in globals() and recorder and hasattr(recorder, 'mouse_listener') and recorder.mouse_listener:
+                recorder.mouse_listener.stop()
+            if 'recorder' in globals() and recorder and hasattr(recorder, 'keyboard_listener') and recorder.keyboard_listener:
+                recorder.keyboard_listener.stop()
+            print("   • Input listeners stopped")
+        except Exception as e:
+            print(f"     ⚠️ Error stopping listeners: {e}")
+        
+        print("✅ COMPLETE SHUTDOWN SUCCESSFUL!")
+        
+    except Exception as e:
+        print(f"⚠️ Warning during shutdown: {e}")
+        print("🔪 Forcing immediate exit anyway...")
+    
+    # Destroy the GUI
+    try:
+        root.quit()  # Exit the mainloop
+        root.destroy()  # Destroy the window
+    except tk.TclError:
+        # Already destroyed, that's fine
         pass
     
-    print("🛑 Shutdown complete!")
-    os._exit(0)  # Force immediate exit
+    # Force exit to ensure everything is terminated
+    print("🛑 Forcing immediate exit...")
+    os._exit(0)  # Nuclear option - immediately terminate the entire process
+
+def signal_handler(signum, frame):
+    """Handle Ctrl+C and other signals - immediate shutdown"""
+    print(f"\n🔄 Received signal {signum}, triggering ultimate shutdown...")
+    on_closing()  # Use the same comprehensive shutdown logic
 
 def finish_recording():
     """Finish recording and save sequence"""
