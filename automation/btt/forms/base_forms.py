@@ -301,6 +301,7 @@ test_session_name: some test session name
         And 3 radio groups if both are true.
         
         """
+        print("executing visa_products_accepted... values of testing_contact and testing_contactless are", self.values["testing_contact"], self.values["testing_contactless"]  )
         first_key = "{space}" if first_true else "{down}"
         second_key = "{space}" if second_true else "{down}"
         third_key = "{space}" if third_true else "{down}"
@@ -309,6 +310,8 @@ test_session_name: some test session name
         if self.values["testing_contact"] and self.values["testing_contactless"]:
             sequence += ",tab,tab,{third_key}"
         sequence += ",tab,space"
+        
+        print('final seqence before execution: ', sequence)
         return self.qf.parse_and_execute_sequence(sequence)
     
     def terminal_implementation(self, isTrue=True):
