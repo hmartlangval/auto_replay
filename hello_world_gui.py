@@ -26,6 +26,8 @@ APP_TITLE = os.getenv("APP_TITLE")
 root = None
 shutdown_in_progress = False
 spawned_processes = []  # Track all spawned subprocess processes
+btt_process = None  # Track BTT process specifically
+btt_button = None  # Reference to BTT button for state changes
 
 try:
     from pynput import mouse, keyboard
@@ -512,28 +514,66 @@ def run_notepad_automation():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to run Notepad automation:\n\n{str(e)}")
 
-def run_btt_automation():
-    """Run the BTT (Brand Test Tool) automation script"""
-    try:
-        import subprocess
-        import os
-        
-        # Get the path to the BTT automation script
-        script_path = os.path.join(os.path.dirname(__file__), "automation", "btt", "btt.py")
-        
-        if os.path.exists(script_path):
-            print("🚀 Running BTT automation...")
-            # Run the script in a separate process and track it
-            process = subprocess.Popen([sys.executable, script_path], 
-                                     cwd=os.path.dirname(__file__))
-            spawned_processes.append(process)
-            print(f"   • Process started with PID: {process.pid}")
-            # messagebox.showinfo("Automation Started", "BTT automation script has been launched!")
-        else:
-            messagebox.showerror("Error", f"BTT automation script not found at:\n{script_path}")
+def toggle_btt_automation():
+    """Toggle BTT automation - start if stopped, stop if running"""
+    global btt_process, btt_button
+    
+    # Check if BTT is currently running
+    if btt_process and btt_process.poll() is None:
+        # BTT is running, stop it
+        print("🛑 Stopping BTT automation...")
+        try:
+            btt_process.terminate()
+            try:
+                btt_process.wait(timeout=2)
+                print(f"   ✅ BTT process {btt_process.pid} terminated gracefully")
+            except subprocess.TimeoutExpired:
+                print(f"   🔪 Force killing BTT process {btt_process.pid}")
+                btt_process.kill()
+                btt_process.wait()
+                print(f"   ✅ BTT process {btt_process.pid} force killed")
             
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to run BTT automation:\n\n{str(e)}")
+            # Remove from spawned_processes list
+            if btt_process in spawned_processes:
+                spawned_processes.remove(btt_process)
+            
+        except (ProcessLookupError, PermissionError):
+            print("   ⚠️ BTT process already terminated")
+        except Exception as e:
+            print(f"   ❌ Error stopping BTT: {e}")
+        
+        # Reset process and update button
+        btt_process = None
+        btt_button.config(text="BTT", bg="#D35400")
+        print("   ✅ BTT stopped, button reset")
+        
+    else:
+        # BTT is not running, start it
+        try:
+            import subprocess
+            import os
+            
+            script_path = os.path.join(os.path.dirname(__file__), "automation", "btt", "btt.py")
+            
+            if os.path.exists(script_path):
+                print("🚀 Starting BTT automation...")
+                btt_process = subprocess.Popen([sys.executable, script_path], 
+                                             cwd=os.path.dirname(__file__))
+                spawned_processes.append(btt_process)
+                print(f"   • BTT process started with PID: {btt_process.pid}")
+                
+                # Update button to show stop option
+                btt_button.config(text="Stop BTT", bg="#E74C3C")
+                print("   ✅ BTT started, button updated")
+            else:
+                messagebox.showerror("Error", f"BTT automation script not found at:\n{script_path}")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to start BTT automation:\n\n{str(e)}")
+
+def run_btt_automation():
+    """Legacy function - redirect to toggle function"""
+    toggle_btt_automation()
 
 def record_sequence():
     """Handle the Record Sequence button click"""
@@ -865,10 +905,12 @@ def main():
     )
     notepad_button.pack(side=tk.LEFT, padx=2)
     
+    # Make btt_button global so toggle function can access it
+    global btt_button
     btt_button = tk.Button(
         buttons_frame,
         text="BTT",
-        command=run_btt_automation,
+        command=toggle_btt_automation,
         bg="#D35400",
         width=8,
         **button_style
