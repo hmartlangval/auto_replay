@@ -1,5 +1,8 @@
 import tkinter as tk
 
+from utils.image_scanner import scan_for_image
+from utils.windows_automation import ManualAutomationHelper
+
 def show_result_dialog(root, message):
     """
     Show a reusable modal result dialog for displaying messages.
@@ -178,3 +181,36 @@ def show_modal_input_dialog(root, title, prompt, initial_value=""):
     dialog.wait_window()
     
     return result[0]
+
+
+def click_apply_ok_button(window_title:str):
+    """
+    Click on the Apply OK button.
+    """
+    
+    window = ManualAutomationHelper(target_window_title=window_title, title_starts_with=True)
+    if not window:
+        print(f"❌ No window found for {window_title}")
+        return
+    
+    apply_button_location = scan_for_image("apply-btn-normal.png", window.get_bbox(), threshold=0.8)
+    if not apply_button_location:
+        apply_button_location = scan_for_image("apply-btn-focussed.png", window.get_bbox(), threshold=0.8)
+        
+    if apply_button_location:
+        print(f"Apply button found at {apply_button_location}")
+    
+    ok_button_location = scan_for_image("ok-btn-normal.png", window.get_bbox(), threshold=0.8)
+    if not ok_button_location:
+        ok_button_location = scan_for_image("ok-btn-focussed.png", window.get_bbox(), threshold=0.8)
+        
+    if ok_button_location:
+        print(f"OK button found at {ok_button_location}")
+        
+    if apply_button_location and ok_button_location:
+        window.click(apply_button_location)
+        window.click(ok_button_location)
+    else:
+        print("Apply or OK button not found")
+        
+    return window

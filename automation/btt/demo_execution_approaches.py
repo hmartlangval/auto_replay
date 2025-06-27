@@ -121,9 +121,10 @@ confirm_final_information:
 test_session_name: File-based Test Session
 """
     custom_steps = """
-merchant_information:
 comment_box:
 confirm_final_information:
+sleep: 2
+apply_ok:
 # File-based execution steps
 # country: [United States (US)]
 # processor_name: File-based Processor

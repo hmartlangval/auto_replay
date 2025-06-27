@@ -483,7 +483,7 @@ test_session_name: some test session name
         Final information screen - confirm button (special handling required).
         """
         time.sleep(0.2)
-        confirm_information_button_location = scan_for_image("confirm-information-button.png", self.current_window.get_bbox(), threshold=0.8)
+        confirm_information_button_location = scan_for_image("confirm-information-btn.png", self.current_window.get_bbox(), threshold=0.8)
         if confirm_information_button_location:
             self.current_window.click(confirm_information_button_location)
             return True
@@ -497,3 +497,27 @@ test_session_name: some test session name
         """
         sequence = f"__0.2,tab,tab,{session_name},tab,space"
         return self.qf.parse_and_execute_sequence(sequence) 
+    
+    def sleep(self, seconds=str):
+        """
+        Sleep - sleep for the given number of seconds.
+        """
+        try:
+            seconds = float(seconds)
+            time.sleep(seconds)
+        except ValueError:
+            print(f"❌ Invalid seconds value: {seconds}")
+            time.sleep(1)
+        
+        return True
+    
+    def apply_ok(self):
+        """
+        Apply OK - apply button then OK button.
+        The UI screen has 3 buttons - OK, Cancel and cancel, where OK is current focussed.
+        
+        Order of key press is Apply first, then OK.
+        This will be replaced with image or other reliable approach in future
+        
+        """
+        return self.qf.parse_and_execute_sequence("__0.2,tab,space,{shift+tab},space")
