@@ -443,8 +443,7 @@ test_session_name: some test session name
         """
         Contact chip offline data authentication (ODA) - radio input with conditional button.
         """
-        sequence = "__0.2,tab,tab"
-        sequence = self.__set_radio_value(sequence, isDDA)
+        return self.__fill_radio_list_forms([isDDA])
         # if select_second:
         #     sequence += ",{down}"
         # sequence += ",(img:oda-screen.png,tab),tab,space"
