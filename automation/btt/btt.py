@@ -11,7 +11,7 @@ from tkinter import ttk, messagebox
 
 # Add parent directory to path first
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-
+from utils.common import click_apply_ok_button
 from utils import (
     ManualAutomationHelper, NavigationParser, play_sequence, play_sequence_async
 )
@@ -106,7 +106,7 @@ class BrandTestToolAutomation:
     def set_config(self, config):
         """Set the automation configuration from the selection dialog"""
         self.config = config
-        print(f"🔧 Configuration set: {config['test_type']} {'with custom steps' if config['use_custom'] else ''}")
+        print(f"🔧 Configuration set: {config['test_type']} - {config['execution_mode']}")
         
     def get_config(self):
         """Get the current automation configuration"""
@@ -306,6 +306,24 @@ class BrandTestToolAutomation:
         except Exception as e:
             print(f"❌ Step 3 failed: {e}")
             return False
+    
+    def export_file_done(self):
+        """Export the file to local folder"""
+        
+        print('Exporting file started...')
+        # opens the dialog to select file
+        # Export dialog
+        self.automation_helper.keys('{Alt+F} -> {Down 3} -> {Enter}')
+        
+        # save option window, tab for browser, enter to open location window
+        time.sleep(1)
+        self.automation_helper.keys('{Enter} -> {tab} -> {Enter}')
+        
+        # confirm the folder, Next and finish keys
+        time.sleep(1)
+        self.automation_helper.keys('{Enter} -> {Enter} -> {Enter}')
+        time.sleep(0.5)
+        self.automation_helper.keys('{Alt+F} -> {Down 1} -> {Enter}')
     
     def create_new_project(self):
         """Create a new project"""
@@ -629,9 +647,15 @@ class BrandTestToolAutomation:
                     self.fill_questionnaire_v2(questionnaire_window)
                 else:
                     print(f"🔴 Test case {test_case} not implemented yet")
+
+
+        # click on the apply ok on the Project Settings window
+        print('attempting to click on apply/ok on project settings window')
+        click_apply_ok_button(project_setup_window_handle)
         
         # Clean up resources before completion
         self._cleanup_resources()
+        
         
         print("✅ BTT Automation completed successfully!")
         return True
@@ -883,6 +907,12 @@ def main():
             else:
                 print("⚠️ No execution steps found in configuration, using default behavior...")
                 qf.execute()
+                
+            click_apply_ok_button(pwin)
+            btt_automation.export_file_done()
+            
+            
+            
         elif CUSTOM_MODE == "START_FROM_CLICK_START_TEST":
             if not (edit_window := start_questionnaire(pwin, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
                 print("❌ No edit window found")
