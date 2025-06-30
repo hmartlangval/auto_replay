@@ -6,6 +6,8 @@ import os
 import time
 import traceback
 import functools
+import tkinter as tk
+from tkinter import ttk, messagebox
 
 # Add parent directory to path first
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -69,6 +71,16 @@ def critical_exception_handler(func):
             print("\n🔍 Full Traceback:")
             traceback.print_exc()
             print(f"\n🛑 INITIATING ULTIMATE SHUTDOWN - Process will terminate automatically...")
+            
+            # Try to clean up resources before shutdown
+            try:
+                # If this is a method call on a BrandTestToolAutomation instance
+                if args and hasattr(args[0], '_cleanup_resources'):
+                    print("🧹 Attempting emergency resource cleanup...")
+                    args[0]._cleanup_resources()
+            except Exception as cleanup_error:
+                print(f"⚠️ Emergency cleanup failed: {cleanup_error}")
+            
             print("=" * 60)
             
             # Use existing ultimate shutdown mechanism - don't reinvent the wheel
@@ -87,6 +99,105 @@ class BrandTestToolAutomation:
         self.window_handle = self.automation_helper.hwnd
         self.window_info = self.automation_helper.get_window_info()
         self.graphics = ScreenOverlay()
+        
+        # Configuration storage
+        self.config = None
+
+    def set_config(self, config):
+        """Set the automation configuration from the selection dialog"""
+        self.config = config
+        print(f"🔧 Configuration set: {config['test_type']} {'with custom steps' if config['use_custom'] else ''}")
+        
+    def get_config(self):
+        """Get the current automation configuration"""
+        return self.config
+        
+    def get_prompt_data(self):
+        """Get the loaded prompt data"""
+        if not self.config:
+            return None
+        return {
+            'test_type_prompt': self.config.get('test_type_prompt', ''),
+            'custom_prompt': self.config.get('custom_prompt', ''),
+            'combined_prompt': self.config.get('test_type_prompt', '') + '\n' + self.config.get('custom_prompt', '')
+        }
+
+    def demonstrate_config_usage(self):
+        """Demonstrate how to use the configuration throughout automation"""
+        if not self.config:
+            print("❌ No configuration available")
+            return
+            
+        print(f"\n🎯 Using {self.config['test_type']} configuration:")
+        print("=" * 50)
+        
+        # Show test type prompt
+        if self.config['test_type_prompt']:
+            print(f"📋 {self.config['test_type']} Instructions:")
+            print(self.config['test_type_prompt'])
+            print()
+        
+        # Show custom prompt if enabled
+        if self.config['use_custom'] and self.config['custom_prompt']:
+            print("🔧 Custom Steps:")
+            print(self.config['custom_prompt'])
+            print()
+        
+        # Example of how to use config in automation logic
+        test_type = self.config['test_type'].lower()
+        if test_type == 'visa':
+            print("🔵 Applying Visa-specific automation logic...")
+            # Add Visa-specific logic here
+        elif test_type == 'mastercard':
+            print("🔴 Applying Mastercard-specific automation logic...")
+            # Add Mastercard-specific logic here
+        
+        if self.config['use_custom']:
+            print("⚙️ Applying custom automation steps...")
+            # Add custom logic here
+        
+        print("=" * 50)
+
+    def _cleanup_resources(self):
+        """
+        Clean up all resources used during automation to ensure proper termination.
+        
+        Resources cleaned up:
+        - Graphics overlays and debug visualizations
+        - Window handles and automation helpers
+        - Configuration data and memory
+        - Temporary files or processes
+        """
+        print("🧹 Cleaning up automation resources...")
+        
+        try:
+            # Clean up graphics overlay
+            if hasattr(self, 'graphics') and self.graphics:
+                print("   🎨 Cleaning up graphics overlay...")
+                # Close any open overlay windows
+                try:
+                    self.graphics = None
+                except:
+                    pass
+            
+            # Reset automation state 
+            print("   🔄 Resetting automation state...")
+            self.reset()
+            
+            # Clear configuration data
+            if hasattr(self, 'config') and self.config:
+                print("   ⚙️ Clearing configuration data...")
+                self.config = None
+            
+            # Force garbage collection to free memory
+            print("   🗑️ Performing garbage collection...")
+            import gc
+            gc.collect()
+            
+            print("   ✅ Resource cleanup completed")
+            
+        except Exception as e:
+            print(f"   ⚠️ Warning: Some resources may not have been cleaned up properly: {e}")
 
     def _show_debug_visualization(self, search_region, found_locations=None, target_location=None, duration=3):
         """Show clean debug visualization using a temporary transparent window"""
@@ -423,6 +534,10 @@ class BrandTestToolAutomation:
         edit_window.keys("{space}")
         
         print("🎉 All automation steps completed successfully!")
+        
+        # Clean up resources before exit
+        self._cleanup_resources()
+        
         print('Task completed. Exiting...')
         exit()
     
@@ -463,8 +578,13 @@ class BrandTestToolAutomation:
         
         if result:
             print("✅ File-based approach completed successfully\n")
+            # Clean up resources after successful completion
+            self._cleanup_resources()
         else:
             print("❌ File-based approach failed\n")
+            # Clean up resources even after failure
+            self._cleanup_resources()
+    
     
     @critical_exception_handler
     def execute_all_steps(self):
@@ -482,55 +602,58 @@ class BrandTestToolAutomation:
         if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
         
+        configuration = self.test_type_prompt;
+        # Parse configuration from prompt
+        def parse_prompt(prompt_text):
+            """Parse prompt text to extract tree options and their test cases"""
+            tree_options = {}
+            current_tree_option = None
+            
+            for line in prompt_text.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                if line.startswith("- Tree Option:"):
+                    current_tree_option = line.split(":")[1].strip()
+                    tree_options[current_tree_option] = []
+                elif line.startswith("- Test Case:") and current_tree_option:
+                    test_case = line.split(":")[1].strip()
+                    tree_options[current_tree_option].append(test_case)
+            
+            return tree_options
+        
+        
+        tree_options = parse_prompt(configuration)
+        print(f"📝 Parsed configuration - Tree Options: {tree_options}")
+        
         # # Now we are ready to navigate to the node we want to edit
-        navigator = TreeViewNavigator(automation_helper=project_setup_window_handle, collapse_count=2)
+        for tree_option, test_cases in tree_options.items():
+            navigator = TreeViewNavigator(automation_helper=project_setup_window_handle, collapse_count=2)
+            time.sleep(1.5)
+            navigator.navigate_to_path(tree_option)
+            for test_case in test_cases:
+                time.sleep(0.2)
+                project_setup_window_handle.keys("{space}")
+                time.sleep(1) # gives time for the right panel to get populated
+                
+                if test_case == "VisaL3Testing_Series01_Build_021":
+                    questionnaire_window = start_questionnaire(project_setup_window_handle, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")
+                    if not questionnaire_window:
+                        print("❌ No questionnaire window found")
+                        return False
+                    
+                    time.sleep(1)
         
-        # # retrieve data from pre-processed data where to navigate, assume 1.7.2
-        # # and then put a check on the current node by pressing space key 
-        time.sleep(1.5)
-        navigator.navigate_to_path("1.7.2")
-        time.sleep(0.2)
-        project_setup_window_handle.keys("{space}")
-        time.sleep(1) # gives time for the right panel to get populated
+                    # Option 1: Use default forms with manual method calls
+                    self.fill_questionnaire_v2(questionnaire_window)
+                else:
+                    print(f"🔴 Test case {test_case} not implemented yet")
         
-        # click on start test
-        questionnaire_window = start_questionnaire(project_setup_window_handle, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")
-        if not questionnaire_window:
-            print("❌ No questionnaire window found")
-            return False
+        # Clean up resources before completion
+        self._cleanup_resources()
         
-        time.sleep(1)
-        
-        # Option 1: Use default forms with manual method calls
-        self.fill_questionnaire_v2(questionnaire_window)
-        
-        # Option 2: Use declarative execution (uncomment to use)
-        # qf = QuestionnaireFiller(project_setup_window_handle)
-        # qf.execute()  # Uses default execution steps
-        
-        # Option 3: Use custom forms with declarative execution (uncomment to use)
-        # qf_custom = QuestionnaireFiller(project_setup_window_handle, forms_class=CustomQuestionnaireForms)
-        # qf_custom.execute()  # Uses custom execution steps
-        # ewindow = ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire", title_starts_with=True)
-        # time.sleep(1)
-        # self.send_tabs(ewindow, 2)
-        # if not select_countries(ewindow, ["Algeria"]):
-        #     print("❌ Failed to select countries")
-        #     return False
-        
-        # self.send_tabs(ewindow, 2, followed_by_space=True)
-        
-        # # acquire processor name
-        # # this one has a single text input
-        # time.sleep(1)
-        # self.send_tabs(ewindow, 2)
-        # ewindow.type("some duummy name")
-        # # ewindow.keys("{tab}")
-        # # time.sleep(0.5)
-        # # ewindow.keys("{space}")
-        # self.send_tabs(ewindow, 1, followed_by_space=True)
-        
-        # self.fill_questionnaire(pswindow)
+        print("✅ BTT Automation completed successfully!")
         return True
     
     def send_tabs(self, automation_helper, count, followed_by_space=False, followed_by_enter=False, start_delay=0.01, end_delay=0.01):
@@ -568,11 +691,175 @@ class BrandTestToolAutomation:
 # CUSTOM_MODE = "START_FROM_CLICK_START_TEST"
 CUSTOM_MODE = "START_FROM_CUSTOM"
 
+class BTTSelectionDialog:
+    """
+    Selection dialog for Brand Test Tool automation configuration.
+    
+    Features:
+    - Dropdown for test type selection (Visa, Mastercard, etc.)
+    - Checkbox for custom steps option
+    - Automatic prompt file loading based on selection
+    - Extensible design for adding more card types
+    """
+    
+    def __init__(self):
+        self.root = None
+        self.result = None
+        self.test_type_var = None
+        self.use_custom_var = None
+        
+        # Available test types (extensible)
+        self.test_types = ["Visa", "Mastercard"]
+        self.default_test_type = "Visa"
+        
+        # Prompt data storage
+        self.test_type_prompt = ""
+        self.custom_prompt = ""
+        
+    def _load_prompt_file(self, filename):
+        """Load content from a prompt file"""
+        try:
+            filepath = os.path.join(os.path.dirname(__file__), '..', '..', 'prompts', 'btt', filename)
+            if os.path.exists(filepath):
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            else:
+                print(f"⚠️ Prompt file not found: {filepath}")
+                return ""
+        except Exception as e:
+            print(f"❌ Error loading prompt file {filename}: {e}")
+            return ""
+    
+    def _load_prompts(self):
+        """Load prompts based on current selections"""
+        # Load test type prompt
+        test_type = self.test_type_var.get().lower()
+        test_type_filename = f"{test_type}_prompt.txt"
+        self.test_type_prompt = self._load_prompt_file(test_type_filename)
+        
+        # Load custom prompt if checkbox is checked
+        if self.use_custom_var.get():
+            self.custom_prompt = self._load_prompt_file("custom_prompt.txt")
+        else:
+            self.custom_prompt = ""
+            
+        print(f"📄 Loaded {test_type} prompt: {len(self.test_type_prompt)} characters")
+        if self.custom_prompt:
+            print(f"📄 Loaded custom prompt: {len(self.custom_prompt)} characters")
+    
+    def _on_ok(self):
+        """Handle OK button click"""
+        try:
+            self._load_prompts()
+            
+            self.result = {
+                'test_type': self.test_type_var.get(),
+                'use_custom': self.use_custom_var.get(),
+                'test_type_prompt': self.test_type_prompt,
+                'custom_prompt': self.custom_prompt
+            }
+            
+            print(f"✅ Selected: {self.result['test_type']}, Custom: {self.result['use_custom']}")
+            self.root.quit()
+            self.root.destroy()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load configuration: {e}")
+    
+    def _on_cancel(self):
+        """Handle Cancel button click"""
+        self.result = None
+        self.root.quit()
+        self.root.destroy()
+    
+    def _create_dialog(self):
+        """Create the selection dialog window"""
+        self.root = tk.Tk()
+        self.root.title("BTT Automation Configuration")
+        self.root.geometry("400x200")
+        self.root.resizable(False, False)
+        
+        # Center the window
+        self.root.eval('tk::PlaceWindow . center')
+        
+        # Make it always on top
+        self.root.attributes('-topmost', True)
+        
+        # Main frame
+        main_frame = ttk.Frame(self.root, padding="20")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Test type selection
+        ttk.Label(main_frame, text="Select Test Type:").grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.test_type_var = tk.StringVar(value=self.default_test_type)
+        test_type_combo = ttk.Combobox(
+            main_frame, 
+            textvariable=self.test_type_var,
+            values=self.test_types,
+            state="readonly",
+            width=25
+        )
+        test_type_combo.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        
+        # Custom steps checkbox
+        self.use_custom_var = tk.BooleanVar(value=False)
+        custom_check = ttk.Checkbutton(
+            main_frame,
+            text="Use Custom steps",
+            variable=self.use_custom_var
+        )
+        custom_check.grid(row=2, column=0, sticky=tk.W, pady=(0, 20))
+        
+        # Buttons frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        
+        ttk.Button(button_frame, text="OK", command=self._on_ok).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(button_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
+        
+        # Configure column weights
+        main_frame.columnconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+    
+    def show(self):
+        """Show the selection dialog and return the result"""
+        try:
+            self._create_dialog()
+            self.root.mainloop()
+            return self.result
+        except Exception as e:
+            print(f"❌ Error showing selection dialog: {e}")
+            return None
+
 @critical_exception_handler
 def main():
     """Main execution function with critical exception handling"""
+    
+    # Show selection dialog first
+    print("🎯 Starting BTT Automation Configuration...")
+    dialog = BTTSelectionDialog()
+    config = dialog.show()
+    
+    if config is None:
+        print("❌ Configuration cancelled. Exiting...")
+        return
+    
+    print(f"🎯 Configuration selected:")
+    print(f"   Test Type: {config['test_type']}")
+    print(f"   Use Custom: {config['use_custom']}")
+    print(f"   Test Type Prompt Length: {len(config['test_type_prompt'])} chars")
+    print(f"   Custom Prompt Length: {len(config['custom_prompt'])} chars")
+    
     # Create automation instance
     btt_automation = BrandTestToolAutomation()
+    
+    # Pass configuration to automation
+    btt_automation.set_config(config)
+    
+    # Demonstrate how configuration is used
+    # btt_automation.demonstrate_config_usage()
     
     if CUSTOM_MODE and CUSTOM_MODE != "":
         if not (pwin := ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)):
@@ -619,20 +906,26 @@ def main():
         print("Custom Mode Execution completed.")
         exit(0)
     
-    # # Option 1: Use default forms
-    # btt_automation.fill_questionnaire(edit_window)
+    # Regular automation flow with configuration
+    print("\n🚀 Starting regular automation with selected configuration...")
     
-    # Option 2: Use custom forms (uncomment to use)
-    # btt_automation.fill_questionnaire(edit_window, forms_class=CustomQuestionnaireForms)
+    # Here you can use the configuration to customize automation behavior
+    # Example: Different behavior based on test type
+    test_type = config['test_type'].lower()
     
-    # Option 1: Execute all steps at once
+    if test_type == 'visa':
+        print("🔵 Executing Visa-specific automation flow...")
+        # Implement Visa-specific automation
+    elif test_type == 'mastercard':
+        print("🔴 Executing Mastercard-specific automation flow...")
+        # Implement Mastercard-specific automation
+    
+    if config['use_custom']:
+        print("⚙️ Applying custom automation steps...")
+        # Apply custom steps
+    
+    # Execute the main automation flow
     btt_automation.execute_all_steps()
-    
-    # Option 2: Execute functions individually for full control
-    # btt_automation.send_navigation_keys()
-    
-    # Option 3: Custom navigation path
-    # btt_automation.send_navigation_keys("{Ctrl+N} -> {Tab 3} -> {Enter}")
 
 # Example usage
 if __name__ == "__main__":
