@@ -335,6 +335,8 @@ class BrandTestToolAutomation:
         print('Exporting file started...')
         # opens the dialog to select file
         # Export dialog
+        self.automation_helper._bring_to_focus()
+        time.sleep(1)
         self.send_navigation_keys('{Alt+F} -> {Down 3} -> {Enter}')
         
         time.sleep(1)
@@ -606,17 +608,7 @@ class BrandTestToolAutomation:
         else:
             print("🚀 Execution using default steps:")
         
-        result = qf.execute(execution_steps)
-        
-        if result:
-            print("✅ File-based approach completed successfully\n")
-            # Clean up resources after successful completion
-            self._cleanup_resources()
-        else:
-            print("❌ File-based approach failed\n")
-            # Clean up resources even after failure
-            self._cleanup_resources()
-    
+        qf.execute(execution_steps)
     
     @critical_exception_handler
     def execute_all_steps(self):
@@ -682,14 +674,10 @@ class BrandTestToolAutomation:
                 else:
                     print(f"🔴 Test case {test_case} not implemented yet")
 
-
         # click on the apply ok on the Project Settings window
-        print('attempting to click on apply/ok on project settings window')
+        print('Attempting to click on apply/ok on Project Settings window')
+        time.sleep(2)
         click_apply_ok_button(project_setup_window_handle)
-        
-        # Clean up resources before completion
-        self._cleanup_resources()
-        
         
         print("✅ BTT Automation completed successfully!")
         return True
@@ -748,6 +736,7 @@ class BTTSelectionDialog:
         # Available test types (extensible)
         self.test_types = [TestType.VISA.value, TestType.MASTERCARD.value]
         self.default_test_type = TestType.VISA.value
+        self.project_name = ""
         
         # Execution modes with display names
         self.execution_mode_display = {
@@ -977,6 +966,13 @@ def main():
     # Regular automation flow with configuration
     print("\n🚀 Starting regular automation with selected configuration...")
     btt_automation.execute_all_steps()
+    
+    # at this stage the file is already done, so we can just export it
+    print("🚀 Exporting test file...")
+    btt_automation.export_file_done()
+    
+    btt_automation._cleanup_resources()
+    exit(0)
 
 # Example usage
 if __name__ == "__main__":
