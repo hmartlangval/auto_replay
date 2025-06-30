@@ -350,7 +350,7 @@ class BrandTestToolAutomation:
         print(f"📐 Window bbox: {bbox}")
         print(f"🔍 Search region (top-left 30%): {search_region}")
         
-        max_iterations = 3  # Maximum consecutive failed attempts
+        max_iterations = 7  # Maximum consecutive failed attempts
         iteration = 0
         
         while iteration < max_iterations:
@@ -690,6 +690,7 @@ class BrandTestToolAutomation:
 
 # CUSTOM_MODE = "START_FROM_CLICK_START_TEST"
 CUSTOM_MODE = "START_FROM_CUSTOM"
+CUSTOM_MODE = ""
 
 class BTTSelectionDialog:
     """
