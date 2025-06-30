@@ -10,6 +10,9 @@ from typing import Tuple, Optional, Dict, Any
 import mss
 import platform
 
+# Import graphics utilities for visual feedback
+from .graphics import draw_search_region, draw_found_locations
+
 
 class ImageScanner:
     """
@@ -138,10 +141,23 @@ class ImageScanner:
         Returns:
             Tuple[int, int]: (x, y) coordinates for mouse click, or None if not found
         """
+        # Draw search region before starting scan to show "scanning in progress"
+        x, y, width, height = bounding_box
+        draw_search_region(x, y, x + width, y + height, 
+                          label=f"Scanning for {image_name}", 
+                          color="", enabled=True, auto_hide_seconds=0)
+        
+        # Perform the actual scan
         if animated_image:
-            return self._scan_animated_image(image_name, bounding_box, threshold, click_offset)
+            result = self._scan_animated_image(image_name, bounding_box, threshold, click_offset)
         else:
-            return self._scan_standard_image(image_name, bounding_box, threshold, click_offset)
+            result = self._scan_standard_image(image_name, bounding_box, threshold, click_offset)
+        
+        # Draw found locations if scan was successful
+        if result is not None:
+            draw_found_locations([result], color="", enabled=True, auto_hide_seconds=5.0)
+        
+        return result
     
     def _scan_standard_image(self, 
                            image_name: str, 
@@ -338,12 +354,30 @@ class ImageScanner:
         Returns:
             Dict[str, Tuple[int, int]]: Dictionary mapping image names to click coordinates
         """
+        # Draw search region before starting scan to show "scanning in progress"
+        x, y, width, height = bounding_box
+        image_list_str = ", ".join(image_names[:3]) + ("..." if len(image_names) > 3 else "")
+        draw_search_region(x, y, x + width, y + height, 
+                          label=f"Scanning for multiple images: {image_list_str}", 
+                          color="", enabled=True, auto_hide_seconds=0)
+        
         results = {}
+        found_locations = []
         
         for image_name in image_names:
-            location = self.scan_for_image(image_name, bounding_box, threshold, (0, 0), animated_image)
+            # Call the internal scanning methods directly to avoid duplicate visual feedback
+            if animated_image:
+                location = self._scan_animated_image(image_name, bounding_box, threshold, (0, 0))
+            else:
+                location = self._scan_standard_image(image_name, bounding_box, threshold, (0, 0))
+            
             if location:
                 results[image_name] = location
+                found_locations.append(location)
+        
+        # Draw all found locations
+        if found_locations:
+            draw_found_locations(found_locations, color="", enabled=True, auto_hide_seconds=5.0)
         
         return results
     
@@ -467,15 +501,28 @@ class ImageScanner:
         Returns:
             list: List of (x, y) coordinates for all found instances
         """
+        # Draw search region before starting scan to show "scanning in progress"
+        x, y, width, height = bounding_box
+        draw_search_region(x, y, x + width, y + height, 
+                          label=f"Scanning for all: {image_name}", 
+                          color="", enabled=True, auto_hide_seconds=0)
+        
+        # Perform the actual scan
         if animated_image:
             # For animated images, we'll use the robust single-image search
             # Note: Finding all occurrences of animated images is complex due to state changes
             # So we'll find the first occurrence using animated search
-            result = self.scan_for_image(image_name, bounding_box, threshold, click_offset, animated_image=True)
-            return [result] if result else []
+            result = self._scan_animated_image(image_name, bounding_box, threshold, click_offset)
+            results = [result] if result else []
         else:
             # Use the standard approach for non-animated images
-            return self._scan_for_all_images_standard(image_name, bounding_box, threshold, click_offset)
+            results = self._scan_for_all_images_standard(image_name, bounding_box, threshold, click_offset)
+        
+        # Draw found locations if scan was successful
+        if results:
+            draw_found_locations(results, color="", enabled=True, auto_hide_seconds=5.0)
+        
+        return results
     
     def _scan_for_all_images_standard(self, 
                                     image_name: str, 
@@ -617,8 +664,14 @@ def scan_image_with_bbox(automation_helper, image_name: str = "plus-collapsed.pn
         # Convert bbox from (left, top, right, bottom) to (x, y, width, height)
         bounding_box = (left, top, right - left, bottom - top)
         
-        # Perform the scan
-        locations = scan_for_all_occurrences(image_name, bounding_box, threshold=threshold, images_folder=images_folder)
+        # Draw search region before starting scan to show "scanning in progress"
+        draw_search_region(left, top, right, bottom, 
+                          label=f"Scanning with bbox: {image_name}", 
+                          color="", enabled=True, auto_hide_seconds=0)
+        
+        # Perform the scan using ImageScanner class directly to avoid duplicate visual feedback
+        scanner = ImageScanner(images_folder)
+        locations = scanner._scan_for_all_images_standard(image_name, bounding_box, threshold, (0, 0))
         
         # Calculate relative coordinates
         results = []
@@ -629,6 +682,10 @@ def scan_image_with_bbox(automation_helper, image_name: str = "plus-collapsed.pn
                 'absolute': (x, y),
                 'relative': (rel_x, rel_y)
             })
+        
+        # Draw found locations if scan was successful
+        if locations:
+            draw_found_locations(locations, color="", enabled=True, auto_hide_seconds=5.0)
         
         return {
             'success': True,
