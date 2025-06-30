@@ -348,7 +348,7 @@ class BrandTestToolAutomation:
         
         # playing export sequence
         print("🔍 Playing export sequence...")
-        success = play_sequence("export_tpp_file", blocking=True)
+        success = play_sequence("export_tpp_file", blocking=True, project_name=self.project_name)
         if not success:
             print("❌ Failed to run sequence")
             return False
