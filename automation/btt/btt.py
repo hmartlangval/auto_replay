@@ -43,7 +43,8 @@ class TestType(Enum):
 
 class WindowTitle(Enum):
     """Common window titles used in BTT automation"""
-    MAIN_WINDOW = "Untitled - Notepad" # "Brand Test Tool"
+    # MAIN_WINDOW = "Untitled - Notepad" # "Brand Test Tool"
+    MAIN_WINDOW = "Brand Test Tool"
     PROJECT_SETTINGS = "Project Settings"
     EDIT_QUESTIONNAIRE = "Edit EMVCo L3 Test Session - Questionnaire"
 
@@ -334,17 +335,26 @@ class BrandTestToolAutomation:
         print('Exporting file started...')
         # opens the dialog to select file
         # Export dialog
-        self.automation_helper.keys('{Alt+F} -> {Down 3} -> {Enter}')
+        self.send_navigation_keys('{Alt+F} -> {Down 3} -> {Enter}')
         
-        # save option window, tab for browser, enter to open location window
         time.sleep(1)
-        self.automation_helper.keys('{Enter} -> {tab} -> {Enter}')
+        if not (etpp := ManualAutomationHelper(target_window_title="Export TPP Package Wizard")):
+            print("❌ No Export TPP Package Wizard window found")
+            return False
+
+        # this etpp window is to be using this bounding box {l:411 t:141 r:922 b:596}
+        etpp.setup_window(bbox=(411, 141, 922, 596))
+        time.sleep(1)
         
-        # confirm the folder, Next and finish keys
-        time.sleep(1)
-        self.automation_helper.keys('{Enter} -> {Enter} -> {Enter}')
-        time.sleep(0.5)
-        self.automation_helper.keys('{Alt+F} -> {Down 1} -> {Enter}')
+        # playing export sequence
+        print("🔍 Playing export sequence...")
+        success = play_sequence("export_tpp_file", blocking=True)
+        if not success:
+            print("❌ Failed to run sequence")
+            return False
+        
+        print("🎉 Export sequence completed successfully!")
+        # now we can just play sequence to export and save the changes
     
     def create_new_project(self):
         """Create a new project"""
@@ -920,6 +930,8 @@ def main():
         
         if CUSTOM_MODE == ExecutionMode.EXPORT_TEST.value:
             print("🚀 Exporting test file...")
+            btt_automation.automation_helper._bring_to_focus()
+            time.sleep(1)
             btt_automation.export_file_done()
             exit(0)
         
