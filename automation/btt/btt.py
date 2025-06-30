@@ -121,6 +121,7 @@ class BrandTestToolAutomation:
         self.window_handle = self.automation_helper.hwnd
         self.window_info = self.automation_helper.get_window_info()
         self.graphics = ScreenOverlay()
+        self.project_name = ""
         
         # Configuration storage
         self.config = None
@@ -736,7 +737,6 @@ class BTTSelectionDialog:
         # Available test types (extensible)
         self.test_types = [TestType.VISA.value, TestType.MASTERCARD.value]
         self.default_test_type = TestType.VISA.value
-        self.project_name = ""
         
         # Execution modes with display names
         self.execution_mode_display = {
