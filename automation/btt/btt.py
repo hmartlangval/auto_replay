@@ -984,6 +984,9 @@ def main():
     btt_automation.export_file_done()
     
     btt_automation._cleanup_resources()
+    
+    from tkinter import messagebox
+    messagebox.showinfo("Success", "Process completed successfully!")
     exit(0)
 
 # Example usage
