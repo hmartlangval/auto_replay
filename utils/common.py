@@ -186,7 +186,7 @@ def show_modal_input_dialog(root, title, prompt, initial_value=""):
 
 def click_apply_ok_button(current_window=None, window_title: str=None):
     """
-    Click on the Apply OK button using centralized animated image detection.
+    Click on the Apply OK button using centralized animated image detection with debug visualization.
     """
     window = current_window if current_window else ManualAutomationHelper(target_window_title=window_title, title_starts_with=True)
     if not window:
@@ -222,11 +222,15 @@ def click_apply_ok_button(current_window=None, window_title: str=None):
         animated_image=True
     )
     
-    # Click buttons if both found
+    # Show debug visualization using custom button visualization (works without click interference)
     if apply_location and ok_location:
+        print("🎯 Showing debug visualization for Apply and OK buttons...")
+        _show_button_debug_visualization(bbox, apply_location=apply_location, ok_location=ok_location, duration=2)
+        time.sleep(0.5)  # Brief pause after visualization
+        
         print("🖱️ Clicking Apply button...")
         window.click(apply_location)
-        time.sleep(0.3)  # Wait between clicks
+        time.sleep(1.0)  # 1 second delay between clicks as requested
         
         print("🖱️ Clicking OK button...")
         window.click(ok_location)
@@ -239,5 +243,103 @@ def click_apply_ok_button(current_window=None, window_title: str=None):
         if not ok_location:
             missing.append("OK")
         print(f"❌ Could not find {', '.join(missing)} button(s)")
+        
+        # Show debug visualization even if buttons not found
+        _show_button_debug_visualization(bbox, apply_location=apply_location, ok_location=ok_location, duration=3)
         return False
+
+
+def _show_button_debug_visualization(search_region, apply_location=None, ok_location=None, duration=3):
+    """Show debug visualization for Apply and OK buttons - CUSTOM IMPLEMENTATION (no click interference)"""
+    import tkinter as tk
+    import threading
+    import time as time_module
+    
+    def create_and_show():
+        # Create a temporary transparent window
+        root = tk.Tk()
+        root.withdraw()  # Hide initially
+        
+        # Make it fullscreen and completely transparent
+        root.attributes('-fullscreen', True)
+        root.attributes('-topmost', True)
+        root.attributes('-alpha', 1.0)  # Fully opaque for the shapes
+        root.overrideredirect(True)
+        
+        # Make the window background transparent
+        try:
+            root.wm_attributes('-transparentcolor', 'black')
+        except:
+            pass
+        
+        # Create transparent canvas with black background (which becomes transparent)
+        canvas = tk.Canvas(root, bg='black', highlightthickness=0)
+        canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Draw search region rectangle (blue)
+        canvas.create_rectangle(
+            search_region[0], search_region[1], search_region[2], search_region[3],
+            outline='#0066FF', width=3, fill=''
+        )
+        
+        # Draw Apply button bounding box (green rectangle)
+        if apply_location:
+            x, y = apply_location
+            # Estimate button size (typical button dimensions)
+            button_width, button_height = 60, 25
+            canvas.create_rectangle(
+                x - button_width//2, y - button_height//2,
+                x + button_width//2, y + button_height//2,
+                outline='#00FF00', width=4, fill=''
+            )
+            # Add label positioned away from click area
+            canvas.create_text(x, y-35, text="APPLY", fill='#00FF00', font=('Arial', 12, 'bold'))
+        
+        # Draw OK button bounding box (orange rectangle)
+        if ok_location:
+            x, y = ok_location
+            # Estimate button size (typical button dimensions)
+            button_width, button_height = 50, 25
+            canvas.create_rectangle(
+                x - button_width//2, y - button_height//2,
+                x + button_width//2, y + button_height//2,
+                outline='#FF6600', width=4, fill=''
+            )
+            # Add label positioned away from click area
+            canvas.create_text(x, y-35, text="OK", fill='#FF6600', font=('Arial', 12, 'bold'))
+        
+        # Show the window
+        root.deiconify()
+        root.update()
+        
+        # Auto-hide after duration
+        def cleanup():
+            time_module.sleep(duration)
+            try:
+                root.destroy()
+            except:
+                pass
+        
+        threading.Thread(target=cleanup, daemon=True).start()
+        
+        # Start the window's event loop in this thread
+        try:
+            root.mainloop()
+        except:
+            pass
+    
+    # Run in separate thread to avoid blocking
+    threading.Thread(target=create_and_show, daemon=True).start()
+
+
+# TODO: Add to utils/graphics.py - Button-specific visualization function
+# This should draw rectangles around button locations instead of circles
+# def visualize_button_search(search_region, button_locations, button_labels=None, show_duration=3.0):
+#     """
+#     Visualize button search results with rectangular boundaries instead of circles
+#     - Draws rectangles around button locations (better for rectangular buttons)
+#     - Labels positioned outside click areas to avoid interference
+#     - Optimized for button automation debugging
+#     """
+#     pass
     
