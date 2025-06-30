@@ -60,7 +60,8 @@ class SequencePlayer:
     
     def play_sequence(self, sequence_name: str, blocking: bool = True, 
                      on_complete: Optional[Callable] = None, 
-                     on_error: Optional[Callable] = None) -> bool:
+                     on_error: Optional[Callable] = None,
+                     **kwargs) -> bool:
         """
         Execute a recorded sequence.
         
@@ -81,12 +82,13 @@ class SequencePlayer:
             return False
         
         if blocking:
-            return self._execute_sequence(sequence_name, on_complete, on_error)
+            return self._execute_sequence(sequence_name, on_complete, on_error, **kwargs)
         else:
             # Run in background thread
             thread = threading.Thread(
                 target=self._execute_sequence,
                 args=(sequence_name, on_complete, on_error),
+                kwargs=kwargs,
                 daemon=True
             )
             thread.start()
@@ -94,7 +96,8 @@ class SequencePlayer:
     
     def _execute_sequence(self, sequence_name: str, 
                          on_complete: Optional[Callable] = None,
-                         on_error: Optional[Callable] = None) -> bool:
+                         on_error: Optional[Callable] = None,
+                         **kwargs) -> bool:
         """
         Internal method to execute a sequence.
         
@@ -126,7 +129,7 @@ class SequencePlayer:
             replay_function = getattr(module, replay_function_name)
             
             # Execute the sequence
-            success = replay_function()
+            success = replay_function(**kwargs)
             
             if success:
                 print(f"✅ Sequence completed successfully: {sequence_name}")
@@ -149,7 +152,8 @@ class SequencePlayer:
     
     def play_sequence_with_delay(self, sequence_name: str, delay_seconds: float = 0, 
                                 blocking: bool = True, on_complete: Optional[Callable] = None,
-                                on_error: Optional[Callable] = None) -> bool:
+                                on_error: Optional[Callable] = None,
+                                **kwargs) -> bool:
         """
         Execute a sequence after a specified delay.
         
@@ -167,7 +171,7 @@ class SequencePlayer:
             if delay_seconds > 0:
                 print(f"⏳ Waiting {delay_seconds}s before starting sequence: {sequence_name}")
                 time.sleep(delay_seconds)
-            return self._execute_sequence(sequence_name, on_complete, on_error)
+            return self._execute_sequence(sequence_name, on_complete, on_error, **kwargs)
         
         if blocking:
             return delayed_execution()
@@ -199,7 +203,8 @@ def get_sequence_player(sequences_dir: str = None) -> SequencePlayer:
 # Convenience functions for easy usage
 def play_sequence(sequence_name: str, blocking: bool = True, 
                  on_complete: Optional[Callable] = None,
-                 on_error: Optional[Callable] = None) -> bool:
+                 on_error: Optional[Callable] = None,
+                 **kwargs) -> bool:
     """
     Play a sequence using the global player.
     
@@ -213,7 +218,7 @@ def play_sequence(sequence_name: str, blocking: bool = True,
         bool: Success status
     """
     player = get_sequence_player()
-    return player.play_sequence(sequence_name, blocking, on_complete, on_error)
+    return player.play_sequence(sequence_name, blocking, on_complete, on_error, **kwargs)
 
 
 def play_sequence_async(sequence_name: str, on_complete: Optional[Callable] = None,

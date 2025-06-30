@@ -360,6 +360,9 @@ class BrandTestToolAutomation:
         """Create a new project"""
         print("🚀 Starting {self.window_title} automation...")
         
+        # generate a random project name and save this in self so that when exporting we use the same name to save the file with
+        self.project_name = f"sample_test_project_{int(time.time())}"
+        
         # Send navigation keys to create project
         if not self.send_navigation_keys(navigation_path="{Alt+F} -> {Down 1} -> {Enter}"):
             return False
@@ -368,7 +371,7 @@ class BrandTestToolAutomation:
         
         # Run sequence to fill in project name and description
         print("🎬 Running sequence to fill project details...")
-        success = play_sequence("fill_project_details", blocking=True)
+        success = play_sequence("fill_project_details", blocking=True, project_name=self.project_name)
         if not success:
             print("❌ Failed to run sequence")
             return False
