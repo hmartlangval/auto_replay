@@ -31,10 +31,10 @@ from enum import Enum, auto
 
 class ExecutionMode(Enum):
     """Execution modes for BTT automation"""
-    START_FROM_BEGINNING = "Start from Beginning"
-    START_FROM_QUESTIONNAIRE = "Start from Start Questionnaire" 
-    START_FROM_CUSTOM = "Start at selected Questions"
-    EXPORT_TEST = "Export Test"
+    START_FROM_BEGINNING = ""
+    START_FROM_QUESTIONNAIRE = "START_FROM_CLICK_START_TEST" 
+    START_FROM_CUSTOM = "START_FROM_CUSTOM"
+    EXPORT_TEST = "EXPORT_TEST"
 
 class TestType(Enum):
     """Test types supported by BTT automation"""
@@ -43,6 +43,7 @@ class TestType(Enum):
 
 class WindowTitle(Enum):
     """Common window titles used in BTT automation"""
+    MAIN_WINDOW = "Untitled - Notepad" # "Brand Test Tool"
     PROJECT_SETTINGS = "Project Settings"
     EDIT_QUESTIONNAIRE = "Edit EMVCo L3 Test Session - Questionnaire"
 
@@ -112,7 +113,7 @@ class BrandTestToolAutomation:
     """Automation class for Brand Test Tool with modular step control"""
     
     def __init__(self):
-        self.window_title = "Brand Test Tool"
+        self.window_title = WindowTitle.MAIN_WINDOW.value
         
         # Initialize automation helper with the found window handle
         self.automation_helper = ManualAutomationHelper(target_window_title=self.window_title)
@@ -163,11 +164,11 @@ class BrandTestToolAutomation:
             print()
         
         # Example of how to use config in automation logic
-        test_type = self.config['test_type'].lower()
-        if test_type == 'visa':
+        test_type = self.config['test_type']
+        if test_type == TestType.VISA.value:
             print("🔵 Applying Visa-specific automation logic...")
             # Add Visa-specific logic here
-        elif test_type == 'mastercard':
+        elif test_type == TestType.MASTERCARD.value:
             print("🔴 Applying Mastercard-specific automation logic...")
             # Add Mastercard-specific logic here
         
@@ -474,7 +475,7 @@ class BrandTestToolAutomation:
         """Identify the project setup window. Then ready the treeview for navigation"""
         # Now the Project Settings Window is open
         # Search for a new window
-        project_setup_window_handle = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
+        project_setup_window_handle = ManualAutomationHelper(target_window_title=WindowTitle.PROJECT_SETTINGS.value, title_starts_with=True)
         print(f"✅ Found Project Setup window: {project_setup_window_handle.hwnd}")
         if not project_setup_window_handle.hwnd:
             print("❌ No Project Setup window found")
@@ -732,17 +733,18 @@ class BTTSelectionDialog:
         self.execution_mode_var = None
         
         # Available test types (extensible)
-        self.test_types = ["Visa", "Mastercard"]
-        self.default_test_type = "Visa"
+        self.test_types = [TestType.VISA.value, TestType.MASTERCARD.value]
+        self.default_test_type = TestType.VISA.value
         
-        # Execution modes
-        self.execution_modes = [
-            ExecutionMode.START_FROM_BEGINNING.value,
-            ExecutionMode.START_FROM_QUESTIONNAIRE.value, 
-            ExecutionMode.START_FROM_CUSTOM.value,
-            ExecutionMode.EXPORT_TEST.value
-        ]
-        self.default_execution_mode = ExecutionMode.START_FROM_BEGINNING.value
+        # Execution modes with display names
+        self.execution_mode_display = {
+            ExecutionMode.START_FROM_BEGINNING: "Start from Beginning",
+            ExecutionMode.START_FROM_QUESTIONNAIRE: "Start from Start Questionnaire", 
+            ExecutionMode.START_FROM_CUSTOM: "Start at selected Questions",
+            ExecutionMode.EXPORT_TEST: "Export Test"
+        }
+        self.execution_modes = list(self.execution_mode_display.values())
+        self.default_execution_mode = self.execution_mode_display[ExecutionMode.START_FROM_BEGINNING]
         
         # Prompt data storage
         self.test_type_prompt = ""
@@ -770,8 +772,15 @@ class BTTSelectionDialog:
         self.test_type_prompt = self._load_prompt_file(test_type_filename)
         
         # Load execution steps based on execution mode
-        execution_mode = self.execution_mode_var.get()
-        if execution_mode == ExecutionMode.START_FROM_CUSTOM.value:
+        execution_mode_display = self.execution_mode_var.get()
+        # Find the enum key for the selected display value
+        execution_mode_enum = None
+        for enum_key, display_value in self.execution_mode_display.items():
+            if display_value == execution_mode_display:
+                execution_mode_enum = enum_key
+                break
+        
+        if execution_mode_enum == ExecutionMode.START_FROM_CUSTOM:
             self.execution_steps = self._load_prompt_file("custom_execution_steps.txt")
         else:
             self.execution_steps = self._load_prompt_file("execution_steps.txt")
@@ -779,21 +788,20 @@ class BTTSelectionDialog:
     def _on_ok(self):
         """Handle OK button click"""
         try:
-            # Map execution mode to CUSTOM_MODE values
-            execution_mode = self.execution_mode_var.get()
-            custom_mode_map = {
-                ExecutionMode.START_FROM_BEGINNING.value: "",
-                ExecutionMode.START_FROM_QUESTIONNAIRE.value: "START_FROM_CLICK_START_TEST",
-                ExecutionMode.START_FROM_CUSTOM.value: "START_FROM_CUSTOM",
-                ExecutionMode.EXPORT_TEST.value: "EXPORT_TEST"
-            }
+            # Find the enum key for the selected display value
+            execution_mode_display = self.execution_mode_var.get()
+            execution_mode_enum = None
+            for enum_key, display_value in self.execution_mode_display.items():
+                if display_value == execution_mode_display:
+                    execution_mode_enum = enum_key
+                    break
             
             self._load_prompts()
             
             self.result = {
                 'test_type': self.test_type_var.get(),
-                'execution_mode': execution_mode,
-                'custom_mode': custom_mode_map[execution_mode],
+                'execution_mode': execution_mode_display,
+                'custom_mode': execution_mode_enum.value,
                 'test_type_prompt': self.test_type_prompt,
                 'execution_steps': self.execution_steps
             }
@@ -911,15 +919,16 @@ def main():
     if CUSTOM_MODE and CUSTOM_MODE != "":
         
         if CUSTOM_MODE == ExecutionMode.EXPORT_TEST.value:
+            print("🚀 Exporting test file...")
             btt_automation.export_file_done()
             exit(0)
         
-        if not (pwin := ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)):
+        if not (pwin := ManualAutomationHelper(target_window_title=WindowTitle.PROJECT_SETTINGS.value, title_starts_with=True)):
             print("❌ No project settings window found")
             exit()
         
         if CUSTOM_MODE == ExecutionMode.START_FROM_CUSTOM.value:
-            if not (edit_window := ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
+            if not (edit_window := ManualAutomationHelper(target_window_title=WindowTitle.EDIT_QUESTIONNAIRE.value)):
                 print("❌ No edit window found")
                 exit()
             qf = QuestionnaireFiller(edit_window)
@@ -941,7 +950,7 @@ def main():
             
             
         elif CUSTOM_MODE == ExecutionMode.START_FROM_QUESTIONNAIRE.value:
-            if not (edit_window := start_questionnaire(pwin, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
+            if not (edit_window := start_questionnaire(pwin, questionnaire_window_title=WindowTitle.EDIT_QUESTIONNAIRE.value)):
                 print("❌ No edit window found")
                 exit()
             qf = QuestionnaireFiller(edit_window)
