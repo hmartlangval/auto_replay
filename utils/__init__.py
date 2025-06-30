@@ -17,3 +17,5 @@ from .graphics import (
     visualize_image_search, draw_search_region, draw_found_locations,
     clear_all_overlays, hide_overlays, show_overlays, destroy_overlays
 )
+from .text_reader import TextReader, text_reader
+from .ai_service import AIService, quick_query
