@@ -205,7 +205,14 @@ if __name__ == "__main__":
     #     print("❌ No window found for demo")
     #     exit()
     
-    click_apply_ok_button("Project Settings")
+    # Get Project Settings window and use bottom 1/4 region to avoid false positives
+    from utils.common import get_bottom_quarter_region
+    project_window = ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)
+    if project_window:
+        search_region = get_bottom_quarter_region(project_window.get_bbox())
+        click_apply_ok_button(project_window, search_region=search_region)
+    else:
+        print("❌ No Project Settings window found")
     
     # Try both normal and focused apply button images
     # apply_button_location = scan_for_image("apply-btn-normal.png", new_project_window.get_bbox(), threshold=0.8)

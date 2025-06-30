@@ -184,9 +184,43 @@ def show_modal_input_dialog(root, title, prompt, initial_value=""):
     return result[0]
 
 
-def click_apply_ok_button(current_window=None, window_title: str=None):
+def get_bottom_quarter_region(bbox):
+    """
+    Calculate the bottom 1/4 region of a window bounding box.
+    
+    Args:
+        bbox: Window bounding box as (left, top, right, bottom)
+        
+    Returns:
+        tuple: (search_bbox, search_bounding_box) where:
+            - search_bbox: (left, top, right, bottom) for bottom 1/4
+            - search_bounding_box: (x, y, width, height) for image scanning
+    """
+    left, top, right, bottom = bbox
+    
+    # Calculate bottom 1/4 region
+    window_height = bottom - top
+    quarter_height = window_height // 4
+    bottom_quarter_top = top + (3 * quarter_height)  # Start at 75% down
+    
+    # Return both formats
+    search_bbox = (left, bottom_quarter_top, right, bottom)
+    search_bounding_box = (left, bottom_quarter_top, right - left, bottom - bottom_quarter_top)
+    
+    print(f"📏 Window height: {window_height}px, bottom 1/4 region: {search_bbox}")
+    
+    return search_bbox, search_bounding_box
+
+
+def click_apply_ok_button(current_window=None, window_title: str=None, search_region=None):
     """
     Click on the Apply OK button using centralized animated image detection with debug visualization.
+    
+    Args:
+        current_window: Window object to search in
+        window_title: Window title to find (if current_window not provided)
+        search_region: Optional (search_bbox, search_bounding_box) tuple to search in.
+                      If None, searches entire window.
     """
     window = current_window if current_window else ManualAutomationHelper(target_window_title=window_title, title_starts_with=True)
     if not window:
@@ -196,12 +230,19 @@ def click_apply_ok_button(current_window=None, window_title: str=None):
     # Wait a moment for any ongoing animations to settle
     time.sleep(0.3)
     
-    # Get bounding box and convert from (left, top, right, bottom) to (x, y, width, height)
+    # Get bounding box
     bbox = window.get_bbox()
-    left, top, right, bottom = bbox
-    bounding_box = (left, top, right - left, bottom - top)
     
-    print(f"🔍 Window bbox: {bbox} -> converted to: {bounding_box}")
+    # Use provided search region or entire window
+    if search_region:
+        search_bbox, search_bounding_box = search_region
+        print(f"🎯 Using provided search region: {search_bbox}")
+    else:
+        # Search entire window
+        left, top, right, bottom = bbox
+        search_bbox = bbox
+        search_bounding_box = (left, top, right - left, bottom - top)
+        print(f"🔍 Searching entire window: {search_bbox}")
     
     # Use the centralized image scanner with animated_image=True
     from utils.image_scanner import scan_for_image
@@ -209,15 +250,15 @@ def click_apply_ok_button(current_window=None, window_title: str=None):
     # Find Apply button using animated search
     apply_location = scan_for_image(
         "apply-btn-normal.png", 
-        bounding_box,  # Now properly converted
+        search_bounding_box,
         threshold=0.8, 
         animated_image=True
     )
     
-    # Find OK button using animated search  
+    # Find OK button using animated search
     ok_location = scan_for_image(
         "ok-btn-normal.png", 
-        bounding_box,  # Now properly converted
+        search_bounding_box,
         threshold=0.8, 
         animated_image=True
     )
@@ -225,7 +266,7 @@ def click_apply_ok_button(current_window=None, window_title: str=None):
     # Show debug visualization using custom button visualization (works without click interference)
     if apply_location and ok_location:
         print("🎯 Showing debug visualization for Apply and OK buttons...")
-        _show_button_debug_visualization(bbox, apply_location=apply_location, ok_location=ok_location, duration=2)
+        _show_button_debug_visualization(search_bbox, apply_location=apply_location, ok_location=ok_location, duration=2)
         time.sleep(0.5)  # Brief pause after visualization
         
         print("🖱️ Clicking Apply button...")
@@ -245,7 +286,7 @@ def click_apply_ok_button(current_window=None, window_title: str=None):
         print(f"❌ Could not find {', '.join(missing)} button(s)")
         
         # Show debug visualization even if buttons not found
-        _show_button_debug_visualization(bbox, apply_location=apply_location, ok_location=ok_location, duration=3)
+        _show_button_debug_visualization(search_bbox, apply_location=apply_location, ok_location=ok_location, duration=3)
         return False
 
 

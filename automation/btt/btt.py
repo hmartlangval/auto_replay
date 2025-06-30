@@ -652,7 +652,7 @@ class BrandTestToolAutomation:
         tree_options = parse_prompt(configuration)
         print(f"📝 Parsed configuration - Tree Options: {tree_options}")
         
-        # # Now we are ready to navigate to the node we want to edit
+        # Now we are ready to navigate to the node we want to edit
         for tree_option, test_cases in tree_options.items():
             navigator = TreeViewNavigator(automation_helper=project_setup_window_handle, collapse_count=2)
             time.sleep(1.5)
@@ -678,7 +678,16 @@ class BrandTestToolAutomation:
         # click on the apply ok on the Project Settings window
         print('Attempting to click on apply/ok on Project Settings window')
         time.sleep(2)
-        click_apply_ok_button(project_setup_window_handle)
+        
+        # we are recapturing the window as it could have been stale by this time.
+        if not (pwin:= ManualAutomationHelper(target_window_title=WindowTitle.PROJECT_SETTINGS.value, title_starts_with=True)):
+            print("❌ No project settings window found")
+            return False
+        
+        # Get bottom 1/4 region to avoid false positives with similar buttons in middle of window
+        from utils.common import get_bottom_quarter_region
+        search_region = get_bottom_quarter_region(pwin.get_bbox())
+        click_apply_ok_button(pwin, search_region=search_region)
         
         print("✅ BTT Automation completed successfully!")
         return True
@@ -948,7 +957,10 @@ def main():
                 print("⚠️ No execution steps found in configuration, using default behavior...")
                 qf.execute()
                 
-            click_apply_ok_button(pwin)
+            # Get bottom 1/4 region to avoid false positives with similar buttons in middle of window
+            from utils.common import get_bottom_quarter_region
+            search_region = get_bottom_quarter_region(pwin.get_bbox())
+            click_apply_ok_button(pwin, search_region=search_region)
             btt_automation.export_file_done()
             
             

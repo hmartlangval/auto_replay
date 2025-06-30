@@ -547,5 +547,8 @@ test_session_name: some test session name
         This will be replaced with image or other reliable approach in future
         
         """
-        return click_apply_ok_button(self.current_window)
+        # Get bottom 1/4 region for questionnaire dialogs (apply/ok typically at bottom)
+        from utils.common import get_bottom_quarter_region
+        search_region = get_bottom_quarter_region(self.current_window.get_bbox())
+        return click_apply_ok_button(self.current_window, search_region=search_region)
         # return self.qf.parse_and_execute_sequence("__0.2,tab,space,{shift+tab},space")
