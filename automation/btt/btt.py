@@ -4,6 +4,8 @@
 import sys
 import os
 import time
+import traceback
+import functools
 
 # Add parent directory to path first
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -22,6 +24,57 @@ from dotenv import load_dotenv
 load_dotenv()
 LOCAL_DEV = os.getenv("LOCAL_DEV", "False") == "True"
 DEBUG_VISUALIZATION = True
+
+def critical_exception_handler(func):
+    """
+    Global decorator for critical exception handling with automatic process termination.
+    
+    PURPOSE:
+    - Prevents BTT automation from hanging when critical exceptions occur
+    - Eliminates need for user to manually press Ctrl+C to terminate hung processes
+    - Provides comprehensive error logging for debugging failed automation runs
+    - Ensures clean process termination using existing shutdown mechanisms
+    
+    WHY THIS APPROACH:
+    - BTT runs as subprocess launched from GUI - hanging processes are problematic
+    - User should not need to intervene when automation fails critically
+    - Catching at decorator level ensures ALL critical functions are protected
+    - Using sys.exit(1) leverages existing shutdown logic (no reinventing the wheel)
+    - Comprehensive logging helps debug automation failures
+    
+    USAGE:
+    - Apply @critical_exception_handler to any function that could fail critically
+    - Already applied to: execute_all_steps(), fill_questionnaire(), main()
+    - Any uncaught exception in wrapped functions triggers automatic shutdown
+    
+    TECHNICAL FLOW:
+    1. Function executes normally if no exceptions
+    2. Any exception caught → detailed logging → sys.exit(1) 
+    3. Parent GUI process detects subprocess death via monitoring
+    4. GUI button resets from "Stop BTT" back to "BTT"
+    
+    FUTURE MAINTENANCE:
+    - Add this decorator to any new critical BTT functions
+    - If you see hanging BTT processes, check if functions are wrapped
+    - Modify logging format here if you need different error details
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print(f"\n💥 CRITICAL EXCEPTION OCCURRED in {func.__name__}:")
+            print(f"❌ Error: {str(e)}")
+            print(f"📍 Exception Type: {type(e).__name__}")
+            print("\n🔍 Full Traceback:")
+            traceback.print_exc()
+            print(f"\n🛑 INITIATING ULTIMATE SHUTDOWN - Process will terminate automatically...")
+            print("=" * 60)
+            
+            # Use existing ultimate shutdown mechanism - don't reinvent the wheel
+            sys.exit(1)
+            
+    return wrapper
 
 class BrandTestToolAutomation:
     """Automation class for Brand Test Tool with modular step control"""
@@ -297,6 +350,7 @@ class BrandTestToolAutomation:
         
         return project_setup_window_handle
     
+    @critical_exception_handler
     def fill_questionnaire(self, edit_window, forms_class=None):
         """
         Fill the questionnaire using the QuestionnaireFiller class
@@ -372,6 +426,7 @@ class BrandTestToolAutomation:
         print('Task completed. Exiting...')
         exit()
     
+    @critical_exception_handler
     def fill_questionnaire_v2(self, questionnaire_window, forms_class=None):
         # Initialize the questionnaire filler with specified forms class
         
@@ -411,6 +466,7 @@ class BrandTestToolAutomation:
         else:
             print("❌ File-based approach failed\n")
     
+    @critical_exception_handler
     def execute_all_steps(self):
         """Execute all steps in sequence"""
         print(f"🚀 Starting {self.window_title} automation...")
@@ -512,8 +568,9 @@ class BrandTestToolAutomation:
 # CUSTOM_MODE = "START_FROM_CLICK_START_TEST"
 CUSTOM_MODE = "START_FROM_CUSTOM"
 
-# Example usage
-if __name__ == "__main__":
+@critical_exception_handler
+def main():
+    """Main execution function with critical exception handling"""
     # Create automation instance
     btt_automation = BrandTestToolAutomation()
     
@@ -576,3 +633,7 @@ if __name__ == "__main__":
     
     # Option 3: Custom navigation path
     # btt_automation.send_navigation_keys("{Ctrl+N} -> {Tab 3} -> {Enter}")
+
+# Example usage
+if __name__ == "__main__":
+    main()

@@ -19,8 +19,8 @@ from utils.windows_automation import ManualAutomationHelper
 
 load_dotenv()
 
-# Configuration - Change this to target different applications
-APP_TITLE = os.getenv("APP_TITLE")
+# Configuration loaded from environment (if needed for future extensions)
+# APP_TITLE = os.getenv("APP_TITLE")  # Currently unused
 
 # Global variables
 root = None
@@ -366,8 +366,6 @@ class SequenceRecorder:
         
         return True, f"Sequence saved as: {filename}"
 
-# Removed global automation helper functions - each automation class manages its own
-
 def scan_image():
     """Scan for plus-collapsed.png image on full screen"""
     if not PYWIN32_AVAILABLE:
@@ -570,10 +568,6 @@ def toggle_btt_automation():
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start BTT automation:\n\n{str(e)}")
-
-def run_btt_automation():
-    """Legacy function - redirect to toggle function"""
-    toggle_btt_automation()
 
 def record_sequence():
     """Handle the Record Sequence button click"""
@@ -981,12 +975,65 @@ def main():
     # Bind Ctrl+C directly to the window as backup
     root.bind('<Control-c>', lambda e: on_closing())
     
+    # BTT process monitoring function
+    def monitor_btt_process():
+        """
+        Monitor BTT subprocess status and keep GUI button state synchronized.
+        
+        WHY THIS IS NEEDED:
+        - BTT runs as a separate subprocess (launched via subprocess.Popen)
+        - When BTT hits a critical exception, it calls sys.exit(1) and terminates
+        - The parent GUI process has NO direct notification when subprocess dies
+        - Without monitoring, button would show "Stop BTT" even when process is dead
+        - User would see inconsistent state: button says "running" but process is dead
+        
+        WHY THIS APPROACH:
+        - Subprocess isolation prevents direct callbacks/notifications
+        - Inter-process communication (IPC) would add complexity (pipes, shared memory)
+        - File-based flags would be slower and add filesystem I/O
+        - Simple polling every 50ms is lightweight and reliable
+        - poll() method is non-blocking and efficient for checking process status
+        
+        TECHNICAL FLOW:
+        1. User clicks BTT → subprocess starts → button shows "Stop BTT" (red)
+        2. BTT hits critical exception → subprocess calls sys.exit(1) → dies
+        3. This monitor detects death via poll() → resets button to "BTT" (orange)
+        4. GUI state stays perfectly synchronized with actual process state
+        
+        FUTURE MAINTENANCE:
+        - If you see button sync issues, check this monitoring function
+        - The 50ms interval balances responsiveness vs CPU usage
+        - Only runs when button shows "Stop BTT" to minimize overhead
+        """
+        global btt_process, btt_button
+        
+        # Only check if we think BTT is running (button shows "Stop BTT")
+        if (btt_process is not None and 
+            btt_button.cget("text") == "Stop BTT" and 
+            btt_process.poll() is not None):
+            
+            # Process has terminated but button still shows "Stop BTT"
+            print(f"🔄 BTT process {btt_process.pid} has terminated, syncing button state...")
+            
+            # Remove from spawned_processes list
+            if btt_process in spawned_processes:
+                spawned_processes.remove(btt_process)
+            
+            # Reset process and update button
+            btt_process = None
+            btt_button.config(text="BTT", bg="#D35400")
+            print("   ✅ Button synced back to 'BTT' state")
+    
     print("✅ Taskbar ready! All systems operational.")
     
     # Custom mainloop for responsive Ctrl+C (but keep it simple)
     try:
         while True:
             root.update()
+            # CRITICAL: Monitor BTT subprocess and sync button state
+            # This ensures GUI button accurately reflects actual process status
+            # See monitor_btt_process() docstring for full technical explanation
+            monitor_btt_process()  
             time.sleep(0.05)  # 50ms - good balance between responsiveness and CPU usage
     except tk.TclError:
         # Window was closed normally
