@@ -28,24 +28,25 @@ def test_dialog():
     print("✅ Dialog completed successfully!")
     print(f"📊 Results:")
     print(f"   Test Type: {config['test_type']}")
-    print(f"   Use Custom: {config['use_custom']}")
+    print(f"   Execution Mode: {config['execution_mode']}")
+    print(f"   Custom Mode: {config['custom_mode']}")
     print(f"   Test Type Prompt: {len(config['test_type_prompt'])} characters")
-    print(f"   Custom Prompt: {len(config['custom_prompt'])} characters")
+    print(f"   Execution Steps: {len(config['execution_steps'])} characters")
     
     print("\n📄 Test Type Prompt Content:")
     print("-" * 30)
     print(config['test_type_prompt'])
     
-    if config['custom_prompt']:
-        print("\n🔧 Custom Prompt Content:")
+    if config['execution_steps']:
+        print("\n🔧 Execution Steps Content:")
         print("-" * 30)
-        print(config['custom_prompt'])
+        print(config['execution_steps'])
     
     print("\n🎯 Combined Configuration:")
     print("-" * 30)
     combined = config['test_type_prompt']
-    if config['custom_prompt']:
-        combined += '\n' + config['custom_prompt']
+    if config['execution_steps']:
+        combined += '\n' + config['execution_steps']
     print(combined)
     
     return True

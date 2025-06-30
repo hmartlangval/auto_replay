@@ -1,9 +1,0 @@
-Custom Test Steps:
-- Use extended timeout values (30 seconds)
-- Enable debug logging for all transactions
-- Perform additional security validations
-- Test edge cases for declined transactions
-- Generate detailed compliance reports
-- Use custom merchant configurations
-- Override default terminal behavior
-- Perform stress testing with multiple rapid transactions

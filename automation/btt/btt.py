@@ -113,13 +113,12 @@ class BrandTestToolAutomation:
         return self.config
         
     def get_prompt_data(self):
-        """Get the loaded prompt data"""
+        """Get the loaded prompt and execution data"""
         if not self.config:
             return None
         return {
             'test_type_prompt': self.config.get('test_type_prompt', ''),
-            'custom_prompt': self.config.get('custom_prompt', ''),
-            'combined_prompt': self.config.get('test_type_prompt', '') + '\n' + self.config.get('custom_prompt', '')
+            'execution_steps': self.config.get('execution_steps', '')
         }
 
     def demonstrate_config_usage(self):
@@ -137,10 +136,10 @@ class BrandTestToolAutomation:
             print(self.config['test_type_prompt'])
             print()
         
-        # Show custom prompt if enabled
-        if self.config['use_custom'] and self.config['custom_prompt']:
-            print("🔧 Custom Steps:")
-            print(self.config['custom_prompt'])
+        # Show execution steps if enabled
+        if self.config['execution_mode'] == "Start at selected Questions" and self.config['execution_steps']:
+            print("🔧 Execution Steps:")
+            print(self.config['execution_steps'])
             print()
         
         # Example of how to use config in automation logic
@@ -152,7 +151,7 @@ class BrandTestToolAutomation:
             print("🔴 Applying Mastercard-specific automation logic...")
             # Add Mastercard-specific logic here
         
-        if self.config['use_custom']:
+        if self.config['execution_mode'] == "Start at selected Questions":
             print("⚙️ Applying custom automation steps...")
             # Add custom logic here
         
@@ -544,36 +543,17 @@ class BrandTestToolAutomation:
     @critical_exception_handler
     def fill_questionnaire_v2(self, questionnaire_window, forms_class=None):
         # Initialize the questionnaire filler with specified forms class
-        
-        # Steps:
-        execution_steps = """
-            # File-based execution steps
-            country: [United States (US)]
-            processor_name: File-based Processor
-            user_tester_information: File Tester, file@test.com
-            testing_details: true, true
-            deployment_type: 1
-            terminal_implementation: true
-            visa_products_accepted: true, true, true
-            merchant_information:
-            terminal_atm_information: Ingenico, DESK/5000, Test application V1
-            reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
-            contact_chip_oda: true
-            contact_chip_cvm: true, true, true, false, false, true
-            contact_only_features: false, true, true
-            contactless_chip_cvms: true, true, true, false
-            contactless_only_features: false
-            pin_opt_out_mechanism: 1, 1
-            fleet_2_0: false
-            comment_box:
-            confirm_final_information:
-            sleep: 2
-            apply_ok:
-            """
-        
         qf = QuestionnaireFiller(questionnaire_window, forms_class=forms_class)
         forms = qf.questionnaire_forms
-        print("🚀 Execution using steps loaded from custom defined steps:")
+        
+        # Use execution steps from configuration if available
+        execution_steps = None
+        if self.config and self.config.get('execution_steps'):
+            execution_steps = self.config['execution_steps']
+            print("🚀 Execution using steps loaded from configuration:")
+        else:
+            print("🚀 Execution using default steps:")
+        
         result = qf.execute(execution_steps)
         
         if result:
@@ -688,9 +668,7 @@ class BrandTestToolAutomation:
         print("🔄 Automation state reset")
 
 
-# CUSTOM_MODE = "START_FROM_CLICK_START_TEST"
-CUSTOM_MODE = "START_FROM_CUSTOM"
-CUSTOM_MODE = ""
+# CUSTOM_MODE is now controlled by the selection dialog
 
 class BTTSelectionDialog:
     """
@@ -698,7 +676,7 @@ class BTTSelectionDialog:
     
     Features:
     - Dropdown for test type selection (Visa, Mastercard, etc.)
-    - Checkbox for custom steps option
+    - Dropdown for execution mode selection
     - Automatic prompt file loading based on selection
     - Extensible design for adding more card types
     """
@@ -707,15 +685,23 @@ class BTTSelectionDialog:
         self.root = None
         self.result = None
         self.test_type_var = None
-        self.use_custom_var = None
+        self.execution_mode_var = None
         
         # Available test types (extensible)
         self.test_types = ["Visa", "Mastercard"]
         self.default_test_type = "Visa"
         
+        # Execution modes
+        self.execution_modes = [
+            "Start from Beginning",
+            "Start from Start Questionnaire", 
+            "Start at selected Questions"
+        ]
+        self.default_execution_mode = "Start from Beginning"
+        
         # Prompt data storage
         self.test_type_prompt = ""
-        self.custom_prompt = ""
+        self.execution_steps = ""
         
     def _load_prompt_file(self, filename):
         """Load content from a prompt file"""
@@ -738,29 +724,35 @@ class BTTSelectionDialog:
         test_type_filename = f"{test_type}_prompt.txt"
         self.test_type_prompt = self._load_prompt_file(test_type_filename)
         
-        # Load custom prompt if checkbox is checked
-        if self.use_custom_var.get():
-            self.custom_prompt = self._load_prompt_file("custom_prompt.txt")
+        # Load execution steps based on execution mode
+        execution_mode = self.execution_mode_var.get()
+        if execution_mode == "Start at selected Questions":
+            self.execution_steps = self._load_prompt_file("custom_execution_steps.txt")
         else:
-            self.custom_prompt = ""
-            
-        print(f"📄 Loaded {test_type} prompt: {len(self.test_type_prompt)} characters")
-        if self.custom_prompt:
-            print(f"📄 Loaded custom prompt: {len(self.custom_prompt)} characters")
+            self.execution_steps = self._load_prompt_file("execution_steps.txt")
     
     def _on_ok(self):
         """Handle OK button click"""
         try:
+            # Map execution mode to CUSTOM_MODE values
+            execution_mode = self.execution_mode_var.get()
+            custom_mode_map = {
+                "Start from Beginning": "",
+                "Start from Start Questionnaire": "START_FROM_CLICK_START_TEST",
+                "Start at selected Questions": "START_FROM_CUSTOM"
+            }
+            
             self._load_prompts()
             
             self.result = {
                 'test_type': self.test_type_var.get(),
-                'use_custom': self.use_custom_var.get(),
+                'execution_mode': execution_mode,
+                'custom_mode': custom_mode_map[execution_mode],
                 'test_type_prompt': self.test_type_prompt,
-                'custom_prompt': self.custom_prompt
+                'execution_steps': self.execution_steps
             }
             
-            print(f"✅ Selected: {self.result['test_type']}, Custom: {self.result['use_custom']}")
+            print(f"✅ Selected: {self.result['test_type']}, Mode: {self.result['execution_mode']}")
             self.root.quit()
             self.root.destroy()
             
@@ -777,7 +769,7 @@ class BTTSelectionDialog:
         """Create the selection dialog window"""
         self.root = tk.Tk()
         self.root.title("BTT Automation Configuration")
-        self.root.geometry("400x200")
+        self.root.geometry("400x250")
         self.root.resizable(False, False)
         
         # Center the window
@@ -803,18 +795,22 @@ class BTTSelectionDialog:
         )
         test_type_combo.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
-        # Custom steps checkbox
-        self.use_custom_var = tk.BooleanVar(value=False)
-        custom_check = ttk.Checkbutton(
+        # Execution mode selection
+        ttk.Label(main_frame, text="Select Execution Mode:").grid(row=2, column=0, sticky=tk.W, pady=(0, 5))
+        
+        self.execution_mode_var = tk.StringVar(value=self.default_execution_mode)
+        execution_mode_combo = ttk.Combobox(
             main_frame,
-            text="Use Custom steps",
-            variable=self.use_custom_var
+            textvariable=self.execution_mode_var,
+            values=self.execution_modes,
+            state="readonly",
+            width=25
         )
-        custom_check.grid(row=2, column=0, sticky=tk.W, pady=(0, 20))
+        execution_mode_combo.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         
         # Buttons frame
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        button_frame.grid(row=4, column=0, sticky=(tk.W, tk.E))
         
         ttk.Button(button_frame, text="OK", command=self._on_ok).pack(side=tk.RIGHT, padx=(5, 0))
         ttk.Button(button_frame, text="Cancel", command=self._on_cancel).pack(side=tk.RIGHT)
@@ -849,9 +845,10 @@ def main():
     
     print(f"🎯 Configuration selected:")
     print(f"   Test Type: {config['test_type']}")
-    print(f"   Use Custom: {config['use_custom']}")
+    print(f"   Execution Mode: {config['execution_mode']}")
+    print(f"   Custom Mode: {config['custom_mode']}")
     print(f"   Test Type Prompt Length: {len(config['test_type_prompt'])} chars")
-    print(f"   Custom Prompt Length: {len(config['custom_prompt'])} chars")
+    print(f"   Execution Steps Length: {len(config['execution_steps'])} chars")
     
     # Create automation instance
     btt_automation = BrandTestToolAutomation()
@@ -861,6 +858,9 @@ def main():
     
     # Demonstrate how configuration is used
     # btt_automation.demonstrate_config_usage()
+    
+    # Use the custom mode from dialog configuration
+    CUSTOM_MODE = config['custom_mode']
     
     if CUSTOM_MODE and CUSTOM_MODE != "":
         if not (pwin := ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)):
@@ -874,29 +874,15 @@ def main():
             qf = QuestionnaireFiller(edit_window)
             qf.questionnaire_forms.values["testing_contact"] = True
             qf.questionnaire_forms.values["testing_contactless"] = True
-            qf.execute("""
-                    # country: [United States (US)]
-                    # processor_name: File-based Processor
-                    # user_tester_information: File Tester, file@test.com
-                    # testing_details: true, true
-                    # deployment_type: 1
-                    # terminal_implementation: true
-                    # visa_products_accepted: true, true, true
-                    # merchant_information:
-                    # terminal_atm_information: Ingenico, DESK/5000, Test application V1
-                    # reference_number: 13050 0514 400 21 CET,2-04683-3-8C-FIME-1020-4.3i,15911 1117 260 26b 26b CETI,CDINGE01916
-                    contact_chip_oda: true
-                    contact_chip_cvm: true, true, true, false, false, true
-                    contact_only_features: false, true, true
-                    contactless_chip_cvms: true, true, true, false
-                    contactless_only_features: false
-                    pin_opt_out_mechanism: 1, 1
-                    fleet_2_0: false
-                    comment_box:
-                    confirm_final_information:
-                    sleep: 2
-                    apply_ok:
-                    """)
+            
+            # Use execution steps from loaded configuration
+            execution_steps = config.get('execution_steps', '')
+            if execution_steps:
+                print("🚀 Using execution steps from configuration file...")
+                qf.execute(execution_steps)
+            else:
+                print("⚠️ No execution steps found in configuration, using default behavior...")
+                qf.execute()
         elif CUSTOM_MODE == "START_FROM_CLICK_START_TEST":
             if not (edit_window := start_questionnaire(pwin, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
                 print("❌ No edit window found")
@@ -914,14 +900,14 @@ def main():
     # Example: Different behavior based on test type
     test_type = config['test_type'].lower()
     
-    if test_type == 'Visa':
+    if test_type == 'visa':
         print("🔵 Executing Visa-specific automation flow...")
         # Implement Visa-specific automation
-    elif test_type == 'Mastercard':
+    elif test_type == 'mastercard':
         print("🔴 Executing Mastercard-specific automation flow...")
         # Implement Mastercard-specific automation
     
-    if config['use_custom']:
+    if config['execution_mode'] == "Start at selected Questions":
         print("⚙️ Applying custom automation steps...")
         # Apply custom steps
     
