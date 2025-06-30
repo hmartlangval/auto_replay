@@ -602,7 +602,7 @@ class BrandTestToolAutomation:
         if not (project_setup_window_handle := self.prepare_project_setup_window()):
             return False
         
-        configuration = self.test_type_prompt;
+        configuration = self.config["test_type_prompt"]
         # Parse configuration from prompt
         def parse_prompt(prompt_text):
             """Parse prompt text to extract tree options and their test cases"""
@@ -914,10 +914,10 @@ def main():
     # Example: Different behavior based on test type
     test_type = config['test_type'].lower()
     
-    if test_type == 'visa':
+    if test_type == 'Visa':
         print("🔵 Executing Visa-specific automation flow...")
         # Implement Visa-specific automation
-    elif test_type == 'mastercard':
+    elif test_type == 'Mastercard':
         print("🔴 Executing Mastercard-specific automation flow...")
         # Implement Mastercard-specific automation
     
