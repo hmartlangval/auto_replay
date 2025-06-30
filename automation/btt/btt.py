@@ -27,6 +27,26 @@ load_dotenv()
 LOCAL_DEV = os.getenv("LOCAL_DEV", "False") == "True"
 DEBUG_VISUALIZATION = True
 
+from enum import Enum, auto
+
+class ExecutionMode(Enum):
+    """Execution modes for BTT automation"""
+    START_FROM_BEGINNING = "Start from Beginning"
+    START_FROM_QUESTIONNAIRE = "Start from Start Questionnaire" 
+    START_FROM_CUSTOM = "Start at selected Questions"
+    EXPORT_TEST = "Export Test"
+
+class TestType(Enum):
+    """Test types supported by BTT automation"""
+    VISA = "Visa"
+    MASTERCARD = "Mastercard"
+
+class WindowTitle(Enum):
+    """Common window titles used in BTT automation"""
+    PROJECT_SETTINGS = "Project Settings"
+    EDIT_QUESTIONNAIRE = "Edit EMVCo L3 Test Session - Questionnaire"
+
+
 def critical_exception_handler(func):
     """
     Global decorator for critical exception handling with automatic process termination.
@@ -137,7 +157,7 @@ class BrandTestToolAutomation:
             print()
         
         # Show execution steps if enabled
-        if self.config['execution_mode'] == "Start at selected Questions" and self.config['execution_steps']:
+        if self.config['execution_mode'] == ExecutionMode.START_FROM_CUSTOM and self.config['execution_steps']:
             print("🔧 Execution Steps:")
             print(self.config['execution_steps'])
             print()
@@ -151,7 +171,7 @@ class BrandTestToolAutomation:
             print("🔴 Applying Mastercard-specific automation logic...")
             # Add Mastercard-specific logic here
         
-        if self.config['execution_mode'] == "Start at selected Questions":
+        if self.config['execution_mode'] == ExecutionMode.START_FROM_CUSTOM:
             print("⚙️ Applying custom automation steps...")
             # Add custom logic here
         
@@ -218,7 +238,7 @@ class BrandTestToolAutomation:
             root.attributes('-alpha', 1.0)  # Fully opaque for the shapes
             root.overrideredirect(True)
             
-            # Make the window background transparent
+            # Make the window background Start at selected Questions
             try:
                 root.wm_attributes('-transparentcolor', 'black')
             except:
@@ -717,11 +737,12 @@ class BTTSelectionDialog:
         
         # Execution modes
         self.execution_modes = [
-            "Start from Beginning",
-            "Start from Start Questionnaire", 
-            "Start at selected Questions"
+            ExecutionMode.START_FROM_BEGINNING.value,
+            ExecutionMode.START_FROM_QUESTIONNAIRE.value, 
+            ExecutionMode.START_FROM_CUSTOM.value,
+            ExecutionMode.EXPORT_TEST.value
         ]
-        self.default_execution_mode = "Start from Beginning"
+        self.default_execution_mode = ExecutionMode.START_FROM_BEGINNING.value
         
         # Prompt data storage
         self.test_type_prompt = ""
@@ -750,7 +771,7 @@ class BTTSelectionDialog:
         
         # Load execution steps based on execution mode
         execution_mode = self.execution_mode_var.get()
-        if execution_mode == "Start at selected Questions":
+        if execution_mode == ExecutionMode.START_FROM_CUSTOM.value:
             self.execution_steps = self._load_prompt_file("custom_execution_steps.txt")
         else:
             self.execution_steps = self._load_prompt_file("execution_steps.txt")
@@ -761,9 +782,10 @@ class BTTSelectionDialog:
             # Map execution mode to CUSTOM_MODE values
             execution_mode = self.execution_mode_var.get()
             custom_mode_map = {
-                "Start from Beginning": "",
-                "Start from Start Questionnaire": "START_FROM_CLICK_START_TEST",
-                "Start at selected Questions": "START_FROM_CUSTOM"
+                ExecutionMode.START_FROM_BEGINNING.value: "",
+                ExecutionMode.START_FROM_QUESTIONNAIRE.value: "START_FROM_CLICK_START_TEST",
+                ExecutionMode.START_FROM_CUSTOM.value: "START_FROM_CUSTOM",
+                ExecutionMode.EXPORT_TEST.value: "EXPORT_TEST"
             }
             
             self._load_prompts()
@@ -887,11 +909,16 @@ def main():
     CUSTOM_MODE = config['custom_mode']
     
     if CUSTOM_MODE and CUSTOM_MODE != "":
+        
+        if CUSTOM_MODE == ExecutionMode.EXPORT_TEST.value:
+            btt_automation.export_file_done()
+            exit(0)
+        
         if not (pwin := ManualAutomationHelper(target_window_title="Project Settings", title_starts_with=True)):
             print("❌ No project settings window found")
             exit()
         
-        if CUSTOM_MODE == "START_FROM_CUSTOM":
+        if CUSTOM_MODE == ExecutionMode.START_FROM_CUSTOM.value:
             if not (edit_window := ManualAutomationHelper(target_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
                 print("❌ No edit window found")
                 exit()
@@ -913,7 +940,7 @@ def main():
             
             
             
-        elif CUSTOM_MODE == "START_FROM_CLICK_START_TEST":
+        elif CUSTOM_MODE == ExecutionMode.START_FROM_QUESTIONNAIRE.value:
             if not (edit_window := start_questionnaire(pwin, questionnaire_window_title="Edit EMVCo L3 Test Session - Questionnaire")):
                 print("❌ No edit window found")
                 exit()
@@ -925,23 +952,6 @@ def main():
     
     # Regular automation flow with configuration
     print("\n🚀 Starting regular automation with selected configuration...")
-    
-    # Here you can use the configuration to customize automation behavior
-    # Example: Different behavior based on test type
-    test_type = config['test_type'].lower()
-    
-    if test_type == 'visa':
-        print("🔵 Executing Visa-specific automation flow...")
-        # Implement Visa-specific automation
-    elif test_type == 'mastercard':
-        print("🔴 Executing Mastercard-specific automation flow...")
-        # Implement Mastercard-specific automation
-    
-    if config['execution_mode'] == "Start at selected Questions":
-        print("⚙️ Applying custom automation steps...")
-        # Apply custom steps
-    
-    # Execute the main automation flow
     btt_automation.execute_all_steps()
 
 # Example usage
