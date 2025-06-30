@@ -373,6 +373,121 @@ def _show_button_debug_visualization(search_region, apply_location=None, ok_loca
     threading.Thread(target=create_and_show, daemon=True).start()
 
 
+def show_found_locations_debug(search_region, locations, labels=None, colors=None, duration=3, button_sizes=None):
+    """
+    REUSABLE: Show debug visualization for any found image locations.
+    
+    Args:
+        search_region: (left, top, right, bottom) search area to highlight
+        locations: List of (x, y) coordinates where images were found
+        labels: List of text labels for each location (optional)
+        colors: List of colors for each location (optional, defaults to green variants)
+        duration: How long to show visualization (seconds)
+        button_sizes: List of (width, height) for each location (optional, defaults to 60x25)
+    """
+    import tkinter as tk
+    import threading
+    import time as time_module
+    
+    # Default values
+    if not locations:
+        locations = []
+    if labels and len(labels) != len(locations):
+        labels = [f"Found #{i+1}" for i in range(len(locations))]
+    if not labels:
+        labels = [f"Found #{i+1}" for i in range(len(locations))]
+    if not colors:
+        # Default to green for all locations
+        colors = ['#00FF00' for _ in locations]
+    if not button_sizes:
+        button_sizes = [(60, 25) for _ in locations]  # Default button size
+    
+    def create_and_show():
+        # Create a temporary transparent window
+        root = tk.Tk()
+        root.withdraw()  # Hide initially
+        
+        # Make it fullscreen and completely transparent
+        root.attributes('-fullscreen', True)
+        root.attributes('-topmost', True)
+        root.attributes('-alpha', 1.0)  # Fully opaque for the shapes
+        root.overrideredirect(True)
+        
+        # Make the window background transparent
+        try:
+            root.wm_attributes('-transparentcolor', 'black')
+        except:
+            pass
+        
+        # Create transparent canvas with black background (which becomes transparent)
+        canvas = tk.Canvas(root, bg='black', highlightthickness=0)
+        canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Draw search region rectangle (blue)
+        canvas.create_rectangle(
+            search_region[0], search_region[1], search_region[2], search_region[3],
+            outline='#0066FF', width=3, fill=''
+        )
+        
+        # Draw found locations
+        for i, (x, y) in enumerate(locations):
+            color = colors[i]
+            label = labels[i]
+            width, height = button_sizes[i]
+            
+            # Draw bounding box rectangle
+            canvas.create_rectangle(
+                x - width//2, y - height//2,
+                x + width//2, y + height//2,
+                outline=color, width=4, fill=''
+            )
+            # Add label positioned away from click area
+            canvas.create_text(x, y-35, text=label, fill=color, font=('Arial', 12, 'bold'))
+        
+        # Show the window
+        root.deiconify()
+        root.update()
+        
+        # Auto-hide after duration
+        def cleanup():
+            time_module.sleep(duration)
+            try:
+                root.destroy()
+            except:
+                pass
+        
+        threading.Thread(target=cleanup, daemon=True).start()
+        
+        # Start the window's event loop in this thread
+        try:
+            root.mainloop()
+        except:
+            pass
+    
+    # Run in separate thread to avoid blocking
+    threading.Thread(target=create_and_show, daemon=True).start()
+
+
+# Legacy function - now uses the reusable one
+def _show_button_debug_visualization(search_region, apply_location=None, ok_location=None, duration=3):
+    """Show debug visualization for Apply and OK buttons - LEGACY (uses reusable function)"""
+    locations = []
+    labels = []
+    colors = []
+    
+    if apply_location:
+        locations.append(apply_location)
+        labels.append("APPLY")
+        colors.append('#00FF00')  # Green
+    
+    if ok_location:
+        locations.append(ok_location)
+        labels.append("OK")
+        colors.append('#FF6600')  # Orange
+    
+    show_found_locations_debug(search_region, locations, labels, colors, duration)
+
+
 # TODO: Add to utils/graphics.py - Button-specific visualization function
 # This should draw rectangles around button locations instead of circles
 # def visualize_button_search(search_region, button_locations, button_labels=None, show_duration=3.0):
