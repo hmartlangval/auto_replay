@@ -8,6 +8,8 @@ import traceback
 import functools
 import tkinter as tk
 from tkinter import ttk, messagebox
+import logging
+from datetime import datetime
 
 # Add parent directory to path first
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -48,6 +50,32 @@ class WindowTitle(Enum):
     PROJECT_SETTINGS = "Project Settings"
     EDIT_QUESTIONNAIRE = "Edit EMVCo L3 Test Session - Questionnaire"
 
+# Set up logging to file
+def setup_logging():
+    """Set up logging to both console and file"""
+    # Create logs directory if it doesn't exist
+    log_dir = os.path.join(os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else '.', 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # Create log filename with timestamp
+    log_filename = os.path.join(log_dir, f'btt_automation_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+    
+    # Configure logging
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"BTT Automation logging started - Log file: {log_filename}")
+    return logger
+
+# Initialize logging
+logger = setup_logging()
 
 def critical_exception_handler(func):
     """
@@ -87,7 +115,16 @@ def critical_exception_handler(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            print(f"\n💥 CRITICAL EXCEPTION OCCURRED in {func.__name__}:")
+            error_msg = f"💥 CRITICAL EXCEPTION OCCURRED in {func.__name__}:"
+            logger.critical(error_msg)
+            logger.critical(f"❌ Error: {str(e)}")
+            logger.critical(f"📍 Exception Type: {type(e).__name__}")
+            logger.critical("🔍 Full Traceback:")
+            logger.critical(traceback.format_exc())
+            logger.critical("🛑 INITIATING ULTIMATE SHUTDOWN - Process will terminate automatically...")
+            
+            # Also print to console for immediate visibility
+            print(error_msg)
             print(f"❌ Error: {str(e)}")
             print(f"📍 Exception Type: {type(e).__name__}")
             print("\n🔍 Full Traceback:")
@@ -98,11 +135,14 @@ def critical_exception_handler(func):
             try:
                 # If this is a method call on a BrandTestToolAutomation instance
                 if args and hasattr(args[0], '_cleanup_resources'):
+                    logger.info("🧹 Attempting emergency resource cleanup...")
                     print("🧹 Attempting emergency resource cleanup...")
                     args[0]._cleanup_resources()
             except Exception as cleanup_error:
+                logger.error(f"⚠️ Emergency cleanup failed: {cleanup_error}")
                 print(f"⚠️ Emergency cleanup failed: {cleanup_error}")
             
+            logger.critical("=" * 60)
             print("=" * 60)
             
             # Use existing ultimate shutdown mechanism - don't reinvent the wheel
@@ -114,17 +154,29 @@ class BrandTestToolAutomation:
     """Automation class for Brand Test Tool with modular step control"""
     
     def __init__(self):
+        logger.info(f"🏗️ Initializing BrandTestToolAutomation...")
         self.window_title = WindowTitle.MAIN_WINDOW.value
+        logger.info(f"🎯 Looking for window: '{self.window_title}'")
         
         # Initialize automation helper with the found window handle
         self.automation_helper = ManualAutomationHelper(target_window_title=self.window_title)
+        
+        if not self.automation_helper or not self.automation_helper.hwnd:
+            error_msg = f"❌ Failed to find window: '{self.window_title}'"
+            logger.error(error_msg)
+            raise Exception(error_msg)
+        
         self.window_handle = self.automation_helper.hwnd
         self.window_info = self.automation_helper.get_window_info()
+        logger.info(f"✅ Found window - Handle: {self.window_handle}")
+        logger.info(f"📏 Window info: {self.window_info}")
+        
         self.graphics = ScreenOverlay()
         self.project_name = ""
         
         # Configuration storage
         self.config = None
+        logger.info("✅ BrandTestToolAutomation initialized successfully")
 
     def set_config(self, config):
         """Set the automation configuration from the selection dialog"""
@@ -767,7 +819,17 @@ class BTTSelectionDialog:
     def _load_prompt_file(self, filename):
         """Load content from a prompt file"""
         try:
-            filepath = os.path.join(os.path.dirname(__file__), '..', '..', 'prompts', 'btt', filename)
+            # Use proper path handling for .exe compatibility
+            def get_app_data_path(relative_path):
+                if getattr(sys, 'frozen', False):
+                    # Running as .exe - use directory where .exe is located
+                    app_dir = os.path.dirname(sys.executable)
+                else:
+                    # Development mode - use current directory
+                    app_dir = os.path.abspath(".")
+                return os.path.join(app_dir, relative_path)
+            
+            filepath = get_app_data_path(os.path.join('prompts', 'btt', filename))
             if os.path.exists(filepath):
                 with open(filepath, 'r', encoding='utf-8') as f:
                     return f.read().strip()
@@ -903,13 +965,22 @@ def main():
     """Main execution function with critical exception handling"""
     
     # Show selection dialog first
+    logger.info("🎯 Starting BTT Automation Configuration...")
     print("🎯 Starting BTT Automation Configuration...")
     dialog = BTTSelectionDialog()
     config = dialog.show()
     
     if config is None:
+        logger.warning("❌ Configuration cancelled. Exiting...")
         print("❌ Configuration cancelled. Exiting...")
         return
+    
+    logger.info(f"🎯 Configuration selected:")
+    logger.info(f"   Test Type: {config['test_type']}")
+    logger.info(f"   Execution Mode: {config['execution_mode']}")
+    logger.info(f"   Custom Mode: {config['custom_mode']}")
+    logger.info(f"   Test Type Prompt Length: {len(config['test_type_prompt'])} chars")
+    logger.info(f"   Execution Steps Length: {len(config['execution_steps'])} chars")
     
     print(f"🎯 Configuration selected:")
     print(f"   Test Type: {config['test_type']}")
@@ -919,9 +990,13 @@ def main():
     print(f"   Execution Steps Length: {len(config['execution_steps'])} chars")
     
     # Create automation instance
+    logger.info("🤖 Creating BTT automation instance...")
+    print("🤖 Creating BTT automation instance...")
     btt_automation = BrandTestToolAutomation()
     
     # Pass configuration to automation
+    logger.info("🔧 Setting automation configuration...")
+    print("🔧 Setting automation configuration...")
     btt_automation.set_config(config)
     
     # Demonstrate how configuration is used

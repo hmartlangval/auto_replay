@@ -19,6 +19,55 @@ from utils.windows_automation import ManualAutomationHelper
 
 load_dotenv()
 
+# Path handling for PyInstaller executable vs development
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        # Development mode - use current directory
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
+
+def get_app_data_path(relative_path):
+    """Get path for runtime data (sequences, prompts, images) - always relative to .exe location"""
+    if getattr(sys, 'frozen', False):
+        # Running as .exe - use directory where .exe is located
+        app_dir = os.path.dirname(sys.executable)
+    else:
+        # Development mode - use current directory
+        app_dir = os.path.abspath(".")
+    
+    return os.path.join(app_dir, relative_path)
+
+def ensure_runtime_directories():
+    """Ensure runtime directories exist (prompts, sequences, images)"""
+    runtime_dirs = ['prompts', 'sequences', 'images']
+    
+    for dir_name in runtime_dirs:
+        dir_path = get_app_data_path(dir_name)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+            print(f"✅ Created runtime directory: {dir_path}")
+        
+        # Copy default files from packaged resources if directory is empty
+        resource_dir = get_resource_path(dir_name)
+        if os.path.exists(resource_dir) and not os.listdir(dir_path):
+            import shutil
+            try:
+                for item in os.listdir(resource_dir):
+                    src = os.path.join(resource_dir, item)
+                    dst = os.path.join(dir_path, item)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, dst)
+                    elif os.path.isdir(src):
+                        shutil.copytree(src, dst, dirs_exist_ok=True)
+                print(f"📁 Populated {dir_name} directory with default files")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not copy default files to {dir_name}: {e}")
+
 # Configuration loaded from environment (if needed for future extensions)
 # APP_TITLE = os.getenv("APP_TITLE")  # Currently unused
 
@@ -782,6 +831,9 @@ def main():
     
     print("🚀 Starting Fiserv Automation Taskbar...")
     print("💡 Press Ctrl+C anytime for graceful shutdown")
+    
+    # Ensure runtime directories exist (prompts, sequences, images)
+    ensure_runtime_directories()
     
     # Create the main window
     root = tk.Tk()
