@@ -1,7 +1,5 @@
 import re
 import time
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 
 
 class NavigationParser:
@@ -131,103 +129,7 @@ class NavigationParser:
             'description': f"Press key: '{code_content}'"
         }
     
-    @staticmethod
-    def execute_step(step, automation_driver):
-        """Execute a parsed navigation step.
-        
-        Args:
-            step: Step dictionary from parse_navigation_path
-            automation_driver: WebDriver instance
-            
-        Returns:
-            bool: Success/failure
-        """
-        try:
-            print(f"  🎯 Executing: {step['description']}")
-            actions = ActionChains(automation_driver)
-            
-            if step['type'] == 'key_single':
-                # Map special keys to Selenium Keys
-                key_map = {
-                    'enter': Keys.ENTER,
-                    'escape': Keys.ESCAPE,
-                    'tab': Keys.TAB,
-                    'space': Keys.SPACE,
-                    'backspace': Keys.BACKSPACE,
-                    'delete': Keys.DELETE,
-                    'home': Keys.HOME,
-                    'end': Keys.END,
-                    'pageup': Keys.PAGE_UP,
-                    'pagedown': Keys.PAGE_DOWN,
-                    'f1': Keys.F1, 'f2': Keys.F2, 'f3': Keys.F3, 'f4': Keys.F4,
-                    'f5': Keys.F5, 'f6': Keys.F6, 'f7': Keys.F7, 'f8': Keys.F8,
-                    'f9': Keys.F9, 'f10': Keys.F10, 'f11': Keys.F11, 'f12': Keys.F12
-                }
-                
-                selenium_key = key_map.get(step['key'], step['key'])
-                actions.send_keys(selenium_key).perform()
-                time.sleep(0.3)
-                return True
-                
-            elif step['type'] == 'key_combination':
-                # Press modifiers down
-                for modifier in step['modifiers']:
-                    if modifier == 'ctrl':
-                        actions.key_down(Keys.CONTROL)
-                    elif modifier == 'alt':
-                        actions.key_down(Keys.ALT)
-                    elif modifier == 'shift':
-                        actions.key_down(Keys.SHIFT)
-                
-                # Press main key
-                actions.send_keys(step['key'])
-                
-                # Release modifiers
-                for modifier in reversed(step['modifiers']):
-                    if modifier == 'ctrl':
-                        actions.key_up(Keys.CONTROL)
-                    elif modifier == 'alt':
-                        actions.key_up(Keys.ALT)
-                    elif modifier == 'shift':
-                        actions.key_up(Keys.SHIFT)
-                
-                actions.perform()
-                time.sleep(0.5)
-                return True
-                
-            elif step['type'] == 'key_repeat':
-                key_map = {
-                    'down': Keys.ARROW_DOWN,
-                    'up': Keys.ARROW_UP,
-                    'left': Keys.ARROW_LEFT,
-                    'right': Keys.ARROW_RIGHT,
-                    'tab': Keys.TAB,
-                    'enter': Keys.ENTER,
-                    'escape': Keys.ESCAPE
-                }
-                
-                selenium_key = key_map.get(step['key'])
-                if selenium_key:
-                    for i in range(step['count']):
-                        actions.send_keys(selenium_key).perform()
-                        time.sleep(0.2)
-                    return True
-                else:
-                    print(f"  ❌ Unknown repeat key: {step['key']}")
-                    return False
-                    
-            elif step['type'] in ['menu_text', 'menu_item_text']:
-                # These need to be handled by the specific automation handlers
-                # Return True to indicate parsing success, actual execution happens elsewhere
-                return True
-                
-            else:
-                print(f"  ❌ Unknown step type: {step['type']}")
-                return False
-                
-        except Exception as e:
-            print(f"  ❌ Step execution failed: {e}")
-            return False
+
 
     @staticmethod
     def execute_step_windows(step, automation_helper):
