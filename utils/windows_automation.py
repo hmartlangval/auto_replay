@@ -640,7 +640,8 @@ class ManualAutomationHelper:
     
     def wait_for_ui_change(self, action_func, max_wait_time: float = 3.0, check_interval: float = 0.2):
         """
-        Execute an action and wait for UI change by monitoring window state.
+        Execute an action and wait for tree node count to change.
+        Detects actual tree expansion/collapse by monitoring node images.
         
         Args:
             action_func: Function to execute that should cause UI change
@@ -648,41 +649,85 @@ class ManualAutomationHelper:
             check_interval: How often to check for changes (seconds)
             
         Returns:
-            bool: True if change detected or timeout reached, False if action failed
+            bool: True if action succeeded, False if action failed
         """
         try:
-            # Capture initial window state
-            initial_rect = self.get_window_rect()
-            initial_focus = win32gui.GetForegroundWindow()
+            # Count tree nodes before action
+            initial_count = self._count_tree_nodes()
+            print(f"🔍 Initial tree node count: {initial_count}")
             
             # Execute the action
             if not action_func():
                 return False
             
-            print(f"⏳ Waiting for UI change (max {max_wait_time}s)...")
+            print(f"⏳ Waiting for tree node count to change (max {max_wait_time}s)...")
             start_time = time.time()
             
             while time.time() - start_time < max_wait_time:
                 time.sleep(check_interval)
                 
-                # Check for any window state changes
-                current_rect = self.get_window_rect()
-                current_focus = win32gui.GetForegroundWindow()
+                # Check current tree node count
+                current_count = self._count_tree_nodes()
                 
-                # Simple change detection - any difference indicates UI change
-                if (current_rect != initial_rect or 
-                    current_focus != initial_focus):
+                if current_count != initial_count:
                     elapsed = time.time() - start_time
-                    print(f"✅ UI change detected after {elapsed:.1f}s")
+                    print(f"✅ Tree change detected after {elapsed:.1f}s: {initial_count} → {current_count}")
                     return True
             
             # Timeout reached - assume change occurred anyway
-            print(f"⏰ Timeout reached ({max_wait_time}s) - assuming UI change occurred")
+            elapsed = time.time() - start_time
+            print(f"⏰ Timeout reached ({elapsed:.1f}s) - assuming tree change occurred")
             return True
             
         except Exception as e:
             print(f"❌ Error in wait_for_ui_change: {e}")
             return True  # Continue anyway
+    
+    def _count_tree_nodes(self):
+        """
+        Count total tree nodes (expanded + collapsed) in the current window.
+        
+        Returns:
+            int: Total count of tree node images found
+        """
+        try:
+            from .image_scanner import ImageScanner
+            
+            # Get window bounding box
+            bbox = self.get_bbox()
+            if not bbox:
+                return 0
+            
+            left, top, right, bottom = bbox
+            bounding_box = (left, top, right - left, bottom - top)
+            
+            # Initialize scanner
+            scanner = ImageScanner("images")
+            
+            # Count expanded nodes (minus icons)
+            expanded_nodes = scanner.scan_for_all_images(
+                "minus-expanded.png", 
+                bounding_box, 
+                threshold=0.8, 
+                animated_image=False
+            )
+            
+            # Count collapsed nodes (plus icons)  
+            collapsed_nodes = scanner.scan_for_all_images(
+                "plus-collapsed.png", 
+                bounding_box, 
+                threshold=0.8, 
+                animated_image=False
+            )
+            
+            total_count = len(expanded_nodes) + len(collapsed_nodes)
+            print(f"  🌳 Found {len(expanded_nodes)} expanded + {len(collapsed_nodes)} collapsed = {total_count} total nodes")
+            
+            return total_count
+            
+        except Exception as e:
+            print(f"❌ Error counting tree nodes: {e}")
+            return 0  # Return 0 on error so comparison still works
     
     def send_key_with_ui_wait(self, key_combination, max_wait_time: float = 3.0):
         """

@@ -485,6 +485,9 @@ class BrandTestToolAutomation:
         if iteration >= max_iterations:
             print(f"⚠️  Reached maximum iterations ({max_iterations}). Stopping to prevent infinite loop.")
         
+        #now that all tree is collapsed, just send one right key to ensure the root is focussed
+        automation_helper.keys("{Right}")
+        
         print("🎉 Tree collapse process completed!")
 
     def prepare_project_setup_window(self):
