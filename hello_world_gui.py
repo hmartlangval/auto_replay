@@ -838,25 +838,25 @@ def main():
     }
     
     # Create all main buttons horizontally
-    scan_button = tk.Button(
-        buttons_frame,
-        text="Scan Image",
-        command=scan_image,
-        bg="#27AE60",
-        width=12,
-        **button_style
-    )
-    scan_button.pack(side=tk.LEFT, padx=2)
+    # scan_button = tk.Button(
+    #     buttons_frame,
+    #     text="Scan Image",
+    #     command=scan_image,
+    #     bg="#27AE60",
+    #     width=12,
+    #     **button_style
+    # )
+    # scan_button.pack(side=tk.LEFT, padx=2)
     
-    advanced_scan_button = tk.Button(
-        buttons_frame,
-        text="Advanced Scan",
-        command=scan_image_advanced,
-        bg="#8E44AD",
-        width=12,
-        **button_style
-    )
-    advanced_scan_button.pack(side=tk.LEFT, padx=2)
+    # advanced_scan_button = tk.Button(
+    #     buttons_frame,
+    #     text="Advanced Scan",
+    #     command=scan_image_advanced,
+    #     bg="#8E44AD",
+    #     width=12,
+    #     **button_style
+    # )
+    # advanced_scan_button.pack(side=tk.LEFT, padx=2)
     
     record_button = tk.Button(
         buttons_frame,
@@ -868,15 +868,15 @@ def main():
     )
     record_button.pack(side=tk.LEFT, padx=2)
     
-    test_automation_button = tk.Button(
-        buttons_frame,
-        text="Test Automation",
-        command=test_automation,
-        bg="#3498DB",
-        width=14,
-        **button_style
-    )
-    test_automation_button.pack(side=tk.LEFT, padx=2)
+    # test_automation_button = tk.Button(
+    #     buttons_frame,
+    #     text="Test Automation",
+    #     command=test_automation,
+    #     bg="#3498DB",
+    #     width=14,
+    #     **button_style
+    # )
+    # test_automation_button.pack(side=tk.LEFT, padx=2)
     
     search_window_button = tk.Button(
         buttons_frame,
@@ -889,15 +889,15 @@ def main():
     search_window_button.pack(side=tk.LEFT, padx=2)
     
     # Automation buttons
-    notepad_button = tk.Button(
-        buttons_frame,
-        text="Notepad Test",
-        command=run_notepad_automation,
-        bg="#16A085",
-        width=12,
-        **button_style
-    )
-    notepad_button.pack(side=tk.LEFT, padx=2)
+    # notepad_button = tk.Button(
+    #     buttons_frame,
+    #     text="Notepad Test",
+    #     command=run_notepad_automation,
+    #     bg="#16A085",
+    #     width=12,
+    #     **button_style
+    # )
+    # notepad_button.pack(side=tk.LEFT, padx=2)
     
     # Make btt_button global so toggle function can access it
     global btt_button
@@ -906,7 +906,7 @@ def main():
         text="BTT",
         command=toggle_btt_automation,
         bg="#D35400",
-        width=8,
+        width=10,
         **button_style
     )
     btt_button.pack(side=tk.LEFT, padx=2)
@@ -952,12 +952,12 @@ def main():
     
     # Bind hover effects
     buttons_config = [
-        (scan_button, "#27AE60", "#2ECC71"),
-        (advanced_scan_button, "#8E44AD", "#9B59B6"),
+        # (scan_button, "#27AE60", "#2ECC71"),
+        # (advanced_scan_button, "#8E44AD", "#9B59B6"),
         (record_button, "#E67E22", "#F39C12"),
-        (test_automation_button, "#3498DB", "#5DADE2"),
+        # (test_automation_button, "#3498DB", "#5DADE2"),
         (search_window_button, "#9B59B6", "#AF7AC5"),
-        (notepad_button, "#16A085", "#1ABC9C"),
+        # (notepad_button, "#16A085", "#1ABC9C"),
         (btt_button, "#D35400", "#E67E22"),
         (exit_button, "#E74C3C", "#EC7063")
     ]
