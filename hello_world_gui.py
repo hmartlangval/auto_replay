@@ -591,7 +591,7 @@ def toggle_btt_automation():
         
         # Reset process and update button
         btt_process = None
-        btt_button.config(text="BTT", bg="#D35400")
+        btt_button.config(text="Start BTT", bg="#D35400")
         print("   ✅ BTT stopped, button reset")
         
     else:
@@ -600,12 +600,37 @@ def toggle_btt_automation():
             import subprocess
             import os
             
-            script_path = os.path.join(os.path.dirname(__file__), "automation", "btt", "btt.py")
+            # Use BTT executable instead of Python script
+            if getattr(sys, 'frozen', False):
+                # Running as .exe - look for btt.exe as sibling to main .exe
+                exe_dir = os.path.dirname(sys.executable)
+                btt_exe_path = os.path.join(exe_dir, "btt.exe")
+            else:
+                # Development mode - this won't work, but we'll show a helpful error
+                btt_exe_path = "btt.exe (not available in development mode)"
             
-            if os.path.exists(script_path):
+            print(f"🔍 Looking for BTT executable at: {btt_exe_path}")
+            
+            if os.path.exists(btt_exe_path):
                 print("🚀 Starting BTT automation...")
-                btt_process = subprocess.Popen([sys.executable, script_path], 
-                                             cwd=os.path.dirname(__file__))
+                
+                # Use proper working directory for .exe
+                if getattr(sys, 'frozen', False):
+                    # Running as .exe - use directory where .exe is located
+                    work_dir = os.path.dirname(sys.executable)
+                else:
+                    # Development mode - use current directory
+                    work_dir = os.path.dirname(__file__)
+                
+                print(f"🔧 BTT working directory: {work_dir}")
+                btt_process = subprocess.Popen([btt_exe_path], 
+                                             cwd=work_dir,
+                                             stdout=subprocess.PIPE,
+                                             stderr=subprocess.STDOUT,
+                                             text=True,
+                                             bufsize=1,
+                                             universal_newlines=True,
+                                             encoding='utf-8')
                 spawned_processes.append(btt_process)
                 print(f"   • BTT process started with PID: {btt_process.pid}")
                 
@@ -613,10 +638,20 @@ def toggle_btt_automation():
                 btt_button.config(text="Stop BTT", bg="#E74C3C")
                 print("   ✅ BTT started, button updated")
             else:
-                messagebox.showerror("Error", f"BTT automation script not found at:\n{script_path}")
+                if getattr(sys, 'frozen', False):
+                    error_msg = f"BTT executable not found at:\n{btt_exe_path}\n\nMake sure btt.exe is in the same directory as the main executable."
+                else:
+                    error_msg = f"BTT executable mode not available in development.\n\nTo test BTT automation in development, run:\npython automation/btt/btt.py"
+                    
+                print(f"❌ {error_msg}")
+                messagebox.showerror("Error", error_msg)
                 
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to start BTT automation:\n\n{str(e)}")
+            error_msg = f"Failed to start BTT automation:\n\n{str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", error_msg)
 
 def record_sequence():
     """Handle the Record Sequence button click"""
@@ -955,7 +990,7 @@ def main():
     global btt_button
     btt_button = tk.Button(
         buttons_frame,
-        text="BTT",
+        text="Start BTT",
         command=toggle_btt_automation,
         bg="#D35400",
         width=10,
@@ -1049,7 +1084,7 @@ def main():
         TECHNICAL FLOW:
         1. User clicks BTT → subprocess starts → button shows "Stop BTT" (red)
         2. BTT hits critical exception → subprocess calls sys.exit(1) → dies
-        3. This monitor detects death via poll() → resets button to "BTT" (orange)
+        3. This monitor detects death via poll() → resets button to "Start BTT" (orange)
         4. GUI state stays perfectly synchronized with actual process state
         
         FUTURE MAINTENANCE:
@@ -1059,13 +1094,42 @@ def main():
         """
         global btt_process, btt_button
         
+        # Monitor BTT output if process is running
+        if btt_process is not None and btt_process.poll() is None:
+            # Process is still running, check for output
+            try:
+                # Read any available output (non-blocking)
+                import select
+                import sys
+                
+                # Check if there's output available to read
+                if hasattr(btt_process.stdout, 'readline'):
+                    # Try to read a line without blocking
+                    try:
+                        line = btt_process.stdout.readline()
+                        if line:
+                            print(f"📱 BTT: {line.strip()}")
+                    except:
+                        pass  # No output available, that's fine
+            except:
+                pass  # Output monitoring failed, continue with status monitoring
+        
         # Only check if we think BTT is running (button shows "Stop BTT")
         if (btt_process is not None and 
             btt_button.cget("text") == "Stop BTT" and 
             btt_process.poll() is not None):
             
             # Process has terminated but button still shows "Stop BTT"
-            print(f"🔄 BTT process {btt_process.pid} has terminated, syncing button state...")
+            exit_code = btt_process.poll()
+            print(f"🔄 BTT process {btt_process.pid} has terminated with exit code: {exit_code}")
+            
+            # Try to read any final output
+            try:
+                remaining_output = btt_process.stdout.read()
+                if remaining_output:
+                    print(f"📱 BTT final output: {remaining_output.strip()}")
+            except:
+                pass
             
             # Remove from spawned_processes list
             if btt_process in spawned_processes:
@@ -1073,8 +1137,8 @@ def main():
             
             # Reset process and update button
             btt_process = None
-            btt_button.config(text="BTT", bg="#D35400")
-            print("   ✅ Button synced back to 'BTT' state")
+            btt_button.config(text="Start BTT", bg="#D35400")
+            print("   ✅ Button synced back to 'Start BTT' state")
     
     print("✅ Taskbar ready! All systems operational.")
     

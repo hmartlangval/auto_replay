@@ -11,6 +11,18 @@ from tkinter import ttk, messagebox
 import logging
 from datetime import datetime
 
+# Fix Windows console encoding for Unicode emojis in .exe
+if sys.platform == 'win32':
+    try:
+        # Ensure stdout uses UTF-8 encoding to handle Unicode emojis
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+    except:
+        # Fallback: Set encoding environment variable
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 # Add parent directory to path first
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from utils.common import click_apply_ok_button
@@ -77,6 +89,8 @@ def setup_logging():
 # Initialize logging
 logger = setup_logging()
 
+# Removed Unicode emoji handling - using plain text only for .exe compatibility
+
 def critical_exception_handler(func):
     """
     Global decorator for critical exception handling with automatic process termination.
@@ -115,32 +129,32 @@ def critical_exception_handler(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            error_msg = f"💥 CRITICAL EXCEPTION OCCURRED in {func.__name__}:"
+            error_msg = f"CRITICAL EXCEPTION OCCURRED in {func.__name__}:"
             logger.critical(error_msg)
-            logger.critical(f"❌ Error: {str(e)}")
-            logger.critical(f"📍 Exception Type: {type(e).__name__}")
-            logger.critical("🔍 Full Traceback:")
+            logger.critical(f"Error: {str(e)}")
+            logger.critical(f"Exception Type: {type(e).__name__}")
+            logger.critical("Full Traceback:")
             logger.critical(traceback.format_exc())
-            logger.critical("🛑 INITIATING ULTIMATE SHUTDOWN - Process will terminate automatically...")
+            logger.critical("INITIATING ULTIMATE SHUTDOWN - Process will terminate automatically...")
             
             # Also print to console for immediate visibility
             print(error_msg)
-            print(f"❌ Error: {str(e)}")
-            print(f"📍 Exception Type: {type(e).__name__}")
-            print("\n🔍 Full Traceback:")
+            print(f"ERROR: {str(e)}")
+            print(f"Exception Type: {type(e).__name__}")
+            print("\nFull Traceback:")
             traceback.print_exc()
-            print(f"\n🛑 INITIATING ULTIMATE SHUTDOWN - Process will terminate automatically...")
+            print(f"\nINITIATING ULTIMATE SHUTDOWN - Process will terminate automatically...")
             
             # Try to clean up resources before shutdown
             try:
                 # If this is a method call on a BrandTestToolAutomation instance
                 if args and hasattr(args[0], '_cleanup_resources'):
-                    logger.info("🧹 Attempting emergency resource cleanup...")
-                    print("🧹 Attempting emergency resource cleanup...")
+                    logger.info("Attempting emergency resource cleanup...")
+                    print("Attempting emergency resource cleanup...")
                     args[0]._cleanup_resources()
             except Exception as cleanup_error:
-                logger.error(f"⚠️ Emergency cleanup failed: {cleanup_error}")
-                print(f"⚠️ Emergency cleanup failed: {cleanup_error}")
+                logger.error(f"Emergency cleanup failed: {cleanup_error}")
+                print(f"Emergency cleanup failed: {cleanup_error}")
             
             logger.critical("=" * 60)
             print("=" * 60)
@@ -154,34 +168,34 @@ class BrandTestToolAutomation:
     """Automation class for Brand Test Tool with modular step control"""
     
     def __init__(self):
-        logger.info(f"🏗️ Initializing BrandTestToolAutomation...")
+        logger.info(f"Initializing BrandTestToolAutomation...")
         self.window_title = WindowTitle.MAIN_WINDOW.value
-        logger.info(f"🎯 Looking for window: '{self.window_title}'")
+        logger.info(f"Looking for window: '{self.window_title}'")
         
         # Initialize automation helper with the found window handle
         self.automation_helper = ManualAutomationHelper(target_window_title=self.window_title)
         
         if not self.automation_helper or not self.automation_helper.hwnd:
-            error_msg = f"❌ Failed to find window: '{self.window_title}'"
+            error_msg = f"ERROR: Failed to find window: '{self.window_title}'"
             logger.error(error_msg)
             raise Exception(error_msg)
         
         self.window_handle = self.automation_helper.hwnd
         self.window_info = self.automation_helper.get_window_info()
-        logger.info(f"✅ Found window - Handle: {self.window_handle}")
-        logger.info(f"📏 Window info: {self.window_info}")
+        logger.info(f"Found window - Handle: {self.window_handle}")
+        logger.info(f"Window info: {self.window_info}")
         
         self.graphics = ScreenOverlay()
         self.project_name = ""
         
         # Configuration storage
         self.config = None
-        logger.info("✅ BrandTestToolAutomation initialized successfully")
+        logger.info("BrandTestToolAutomation initialized successfully")
 
     def set_config(self, config):
         """Set the automation configuration from the selection dialog"""
         self.config = config
-        print(f"🔧 Configuration set: {config['test_type']} - {config['execution_mode']}")
+        print(f"Configuration set: {config['test_type']} - {config['execution_mode']}")
         
     def get_config(self):
         """Get the current automation configuration"""
@@ -199,38 +213,38 @@ class BrandTestToolAutomation:
     def demonstrate_config_usage(self):
         """Demonstrate how to use the configuration throughout automation"""
         if not self.config:
-            print("❌ No configuration available")
+            print("ERROR: No configuration available")
             return
             
-        print(f"\n🎯 Using {self.config['test_type']} configuration:")
-        print("=" * 50)
+        safe_print(f"\n🎯 Using {self.config['test_type']} configuration:")
+        safe_print("=" * 50)
         
         # Show test type prompt
         if self.config['test_type_prompt']:
-            print(f"📋 {self.config['test_type']} Instructions:")
-            print(self.config['test_type_prompt'])
-            print()
+            safe_print(f"📋 {self.config['test_type']} Instructions:")
+            safe_print(self.config['test_type_prompt'])
+            safe_print()
         
         # Show execution steps if enabled
         if self.config['execution_mode'] == ExecutionMode.START_FROM_CUSTOM and self.config['execution_steps']:
-            print("🔧 Execution Steps:")
-            print(self.config['execution_steps'])
-            print()
+            safe_print("🔧 Execution Steps:")
+            safe_print(self.config['execution_steps'])
+            safe_print()
         
         # Example of how to use config in automation logic
         test_type = self.config['test_type']
         if test_type == TestType.VISA.value:
-            print("🔵 Applying Visa-specific automation logic...")
+            safe_print("🔵 Applying Visa-specific automation logic...")
             # Add Visa-specific logic here
         elif test_type == TestType.MASTERCARD.value:
-            print("🔴 Applying Mastercard-specific automation logic...")
+            safe_print("🔴 Applying Mastercard-specific automation logic...")
             # Add Mastercard-specific logic here
         
         if self.config['execution_mode'] == ExecutionMode.START_FROM_CUSTOM:
-            print("⚙️ Applying custom automation steps...")
+            safe_print("⚙️ Applying custom automation steps...")
             # Add custom logic here
         
-        print("=" * 50)
+        safe_print("=" * 50)
 
     def _cleanup_resources(self):
         """
@@ -834,10 +848,10 @@ class BTTSelectionDialog:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     return f.read().strip()
             else:
-                print(f"⚠️ Prompt file not found: {filepath}")
+                print(f"WARNING: Prompt file not found: {filepath}")
                 return ""
         except Exception as e:
-            print(f"❌ Error loading prompt file {filename}: {e}")
+            print(f"ERROR: Error loading prompt file {filename}: {e}")
             return ""
     
     def _load_prompts(self):
@@ -965,24 +979,24 @@ def main():
     """Main execution function with critical exception handling"""
     
     # Show selection dialog first
-    logger.info("🎯 Starting BTT Automation Configuration...")
-    print("🎯 Starting BTT Automation Configuration...")
+    logger.info("Starting BTT Automation Configuration...")
+    print("Starting BTT Automation Configuration...")
     dialog = BTTSelectionDialog()
     config = dialog.show()
     
     if config is None:
-        logger.warning("❌ Configuration cancelled. Exiting...")
-        print("❌ Configuration cancelled. Exiting...")
+        logger.warning("Configuration cancelled. Exiting...")
+        print("Configuration cancelled. Exiting...")
         return
     
-    logger.info(f"🎯 Configuration selected:")
+    logger.info(f"Configuration selected:")
     logger.info(f"   Test Type: {config['test_type']}")
     logger.info(f"   Execution Mode: {config['execution_mode']}")
     logger.info(f"   Custom Mode: {config['custom_mode']}")
     logger.info(f"   Test Type Prompt Length: {len(config['test_type_prompt'])} chars")
     logger.info(f"   Execution Steps Length: {len(config['execution_steps'])} chars")
     
-    print(f"🎯 Configuration selected:")
+    print(f"Configuration selected:")
     print(f"   Test Type: {config['test_type']}")
     print(f"   Execution Mode: {config['execution_mode']}")
     print(f"   Custom Mode: {config['custom_mode']}")
@@ -990,13 +1004,13 @@ def main():
     print(f"   Execution Steps Length: {len(config['execution_steps'])} chars")
     
     # Create automation instance
-    logger.info("🤖 Creating BTT automation instance...")
-    print("🤖 Creating BTT automation instance...")
+    logger.info("Creating BTT automation instance...")
+    print("Creating BTT automation instance...")
     btt_automation = BrandTestToolAutomation()
     
     # Pass configuration to automation
-    logger.info("🔧 Setting automation configuration...")
-    print("🔧 Setting automation configuration...")
+    logger.info("Setting automation configuration...")
+    print("Setting automation configuration...")
     btt_automation.set_config(config)
     
     # Demonstrate how configuration is used
@@ -1008,19 +1022,19 @@ def main():
     if CUSTOM_MODE and CUSTOM_MODE != "":
         
         if CUSTOM_MODE == ExecutionMode.EXPORT_TEST.value:
-            print("🚀 Exporting test file...")
+            print("Exporting test file...")
             btt_automation.automation_helper._bring_to_focus()
             time.sleep(1)
             btt_automation.export_file_done()
             exit(0)
         
         if not (pwin := ManualAutomationHelper(target_window_title=WindowTitle.PROJECT_SETTINGS.value, title_starts_with=True)):
-            print("❌ No project settings window found")
+            print("ERROR: No project settings window found")
             exit()
         
         if CUSTOM_MODE == ExecutionMode.START_FROM_CUSTOM.value:
             if not (edit_window := ManualAutomationHelper(target_window_title=WindowTitle.EDIT_QUESTIONNAIRE.value)):
-                print("❌ No edit window found")
+                print("ERROR: No edit window found")
                 exit()
             qf = QuestionnaireFiller(edit_window)
             qf.questionnaire_forms.values["testing_contact"] = True
@@ -1029,10 +1043,10 @@ def main():
             # Use execution steps from loaded configuration
             execution_steps = config.get('execution_steps', '')
             if execution_steps:
-                print("🚀 Using execution steps from configuration file...")
+                print("Using execution steps from configuration file...")
                 qf.execute(execution_steps)
             else:
-                print("⚠️ No execution steps found in configuration, using default behavior...")
+                print("WARNING: No execution steps found in configuration, using default behavior...")
                 qf.execute()
                 
             # Get bottom 1/4 region to avoid false positives with similar buttons in middle of window

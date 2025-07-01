@@ -88,44 +88,81 @@ def main():
         print("❌ Failed to install requirements")
         sys.exit(1)
     
-    # Build the executable using the spec file
-    if not run_command("pyinstaller build_exe.spec", "Building executable with PyInstaller"):
-        print("❌ Failed to build executable")
+    # Build the main executable using the spec file
+    if not run_command("pyinstaller build_exe.spec", "Building main executable with PyInstaller"):
+        print("❌ Failed to build main executable")
         sys.exit(1)
     
-    # Check if the executable was created
+    # Build the BTT executable using the spec file
+    if not run_command("pyinstaller build_btt.spec", "Building BTT executable with PyInstaller"):
+        print("❌ Failed to build BTT executable")
+        sys.exit(1)
+    
+    # Organize the distribution structure
+    print("\n🔧 Organizing distribution structure...")
+    
+    # BTT executable should remain as sibling to main executable
+    btt_src = os.path.join('dist', 'btt.exe')
+    
+    if os.path.exists(btt_src):
+        print(f"   📁 BTT executable ready: {btt_src}")
+    else:
+        print("   ⚠️ BTT executable not found, continuing anyway...")
+    
+    # Check if the main executable was created
     exe_path = os.path.join('dist', 'FiservAutomationTaskbar.exe')
+    btt_exe_path = os.path.join('dist', 'btt.exe')
+    
     if os.path.exists(exe_path):
         file_size = os.path.getsize(exe_path)
         file_size_mb = file_size / (1024 * 1024)
         
-        print(f"\n✅ BUILD SUCCESSFUL!")
-        print(f"   📦 Executable created: {exe_path}")
-        print(f"   📏 File size: {file_size_mb:.1f} MB")
-        print(f"\n🎯 DISTRIBUTION READY!")
-        print(f"   The executable can be copied to any Windows machine")
-        print(f"   Runtime folders (prompts, sequences, images) will be created automatically")
+        btt_file_size = 0
+        btt_file_size_mb = 0
+        if os.path.exists(btt_exe_path):
+            btt_file_size = os.path.getsize(btt_exe_path)
+            btt_file_size_mb = btt_file_size / (1024 * 1024)
         
-        # Create distribution info
+        total_size_mb = file_size_mb + btt_file_size_mb
+        
+        print(f"\n✅ BUILD SUCCESSFUL!")
+        print(f"   📦 Main executable: {exe_path} ({file_size_mb:.1f} MB)")
+        print(f"   🤖 BTT executable: {btt_exe_path} ({btt_file_size_mb:.1f} MB)")
+        print(f"   📏 Total size: {total_size_mb:.1f} MB")
+        print(f"\n🎯 DISTRIBUTION READY!")
+        print(f"   The executables can be copied to any Windows machine")
+        print(f"   Runtime folders (prompts, sequences, images) will be created automatically")
+        print(f"   BTT can be run independently or via the main taskbar")
+        
+                 # Create distribution info
         dist_info = f"""
 FISERV AUTOMATION TASKBAR - DISTRIBUTION INFO
 ============================================
 
-📦 Executable: FiservAutomationTaskbar.exe
-📏 Size: {file_size_mb:.1f} MB
+📦 Main Executable: FiservAutomationTaskbar.exe ({file_size_mb:.1f} MB)
+🤖 BTT Executable: btt.exe ({btt_file_size_mb:.1f} MB)
+📏 Total Size: {total_size_mb:.1f} MB
 🖥️  Platform: Windows (64-bit)
 
-📁 RUNTIME FOLDERS:
-The following folders will be created next to the .exe when first run:
-- prompts/     (AI prompts and templates)
-- sequences/   (Recorded automation sequences) 
-- images/      (Image templates for recognition)
+📁 DISTRIBUTION STRUCTURE:
+FiservAutomationTaskbar.exe    (Main taskbar application)
+btt.exe                        (BTT automation - can run independently)
+prompts/                       (AI prompts and templates - user modifiable)
+sequences/                     (Recorded automation sequences - user modifiable)
+images/                        (Image templates for recognition - user modifiable)
 
-These folders can be modified by users as needed.
+🔧 USAGE:
+1. Run FiservAutomationTaskbar.exe for the main taskbar interface
+2. Use "Start BTT" button to launch BTT automation via the taskbar
+3. Or run btt.exe directly for standalone BTT automation
+
+📁 RUNTIME FOLDERS:
+The prompts/, sequences/, and images/ folders will be created automatically
+when first run. These folders can be modified by users as needed.
 
 🔧 DEPLOYMENT:
-1. Copy FiservAutomationTaskbar.exe to target machine
-2. Run the executable
+1. Copy the entire folder structure to target machine
+2. Run FiservAutomationTaskbar.exe or automation/btt.exe as needed
 3. Runtime folders will be created automatically
 4. No additional installation required
 
