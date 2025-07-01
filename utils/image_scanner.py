@@ -9,9 +9,81 @@ import numpy as np
 from typing import Tuple, Optional, Dict, Any
 import mss
 import platform
+import tkinter as tk
+import threading
+import time as time_module
 
-# Import graphics utilities for visual feedback
-from .graphics import draw_search_region, draw_found_locations
+
+def _show_image_search_debug_visualization(search_region, found_locations=None, search_label="Image Search", duration=3):
+    """Show debug visualization for image search - same approach as apply_ok button"""
+    def create_and_show():
+        # Create a temporary transparent window
+        root = tk.Tk()
+        root.withdraw()  # Hide initially
+        
+        # Make it fullscreen and completely transparent
+        root.attributes('-fullscreen', True)
+        root.attributes('-topmost', True)
+        root.attributes('-alpha', 1.0)  # Fully opaque for the shapes
+        root.overrideredirect(True)
+        
+        # Make the window background transparent
+        try:
+            root.wm_attributes('-transparentcolor', 'black')
+        except:
+            pass
+        
+        # Create transparent canvas with black background (which becomes transparent)
+        canvas = tk.Canvas(root, bg='black', highlightthickness=0)
+        canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # Draw search region rectangle (blue)
+        canvas.create_rectangle(
+            search_region[0], search_region[1], search_region[2], search_region[3],
+            outline='#0066FF', width=3, fill=''
+        )
+        
+        # Add search region label
+        canvas.create_text(
+            search_region[0] + 10, search_region[1] + 10,
+            text=search_label, fill='#0066FF', font=('Arial', 12, 'bold'),
+            anchor="nw"
+        )
+        
+        # Draw found locations if provided
+        if found_locations:
+            for i, (x, y) in enumerate(found_locations, 1):
+                # Draw point (small circle)
+                size = 8
+                canvas.create_oval(
+                    x - size, y - size, x + size, y + size,
+                    outline='#00FF00', fill='#00FF00', width=2
+                )
+                # Add label positioned away from click area
+                canvas.create_text(x + 15, y - 15, text=f"#{i}", fill='#00FF00', font=('Arial', 10, 'bold'))
+        
+        # Show the window
+        root.deiconify()
+        root.update()
+        
+        # Auto-hide after duration
+        def cleanup():
+            time_module.sleep(duration)
+            try:
+                root.destroy()
+            except:
+                pass
+        
+        threading.Thread(target=cleanup, daemon=True).start()
+        
+        # Start the window's event loop in this thread
+        try:
+            root.mainloop()
+        except:
+            pass
+    
+    # Run in separate thread to avoid blocking
+    threading.Thread(target=create_and_show, daemon=True).start()
 
 
 class ImageScanner:
@@ -141,11 +213,17 @@ class ImageScanner:
         Returns:
             Tuple[int, int]: (x, y) coordinates for mouse click, or None if not found
         """
-        # Draw search region before starting scan to show "scanning in progress"
+        # Convert bounding_box to search_region format for visualization
         x, y, width, height = bounding_box
-        draw_search_region(x, y, x + width, y + height, 
-                          label=f"Scanning for {image_name}", 
-                          color="", enabled=True, auto_hide_seconds=0)
+        search_region = (x, y, x + width, y + height)
+        
+        # Show "scanning in progress" visualization
+        _show_image_search_debug_visualization(
+            search_region, 
+            found_locations=None, 
+            search_label=f"Scanning for {image_name}",
+            duration=0.5
+        )
         
         # Perform the actual scan
         if animated_image:
@@ -153,9 +231,14 @@ class ImageScanner:
         else:
             result = self._scan_standard_image(image_name, bounding_box, threshold, click_offset)
         
-        # Draw found locations if scan was successful
+        # Show found locations if scan was successful
         if result is not None:
-            draw_found_locations([result], color="", enabled=True, auto_hide_seconds=5.0)
+            _show_image_search_debug_visualization(
+                search_region,
+                found_locations=[result],
+                search_label=f"Found: {image_name}",
+                duration=3.0
+            )
         
         return result
     
@@ -354,12 +437,18 @@ class ImageScanner:
         Returns:
             Dict[str, Tuple[int, int]]: Dictionary mapping image names to click coordinates
         """
-        # Draw search region before starting scan to show "scanning in progress"
+        # Convert bounding_box to search_region format for visualization
         x, y, width, height = bounding_box
+        search_region = (x, y, x + width, y + height)
+        
+        # Show "scanning in progress" visualization
         image_list_str = ", ".join(image_names[:3]) + ("..." if len(image_names) > 3 else "")
-        draw_search_region(x, y, x + width, y + height, 
-                          label=f"Scanning for multiple images: {image_list_str}", 
-                          color="", enabled=True, auto_hide_seconds=0)
+        _show_image_search_debug_visualization(
+            search_region, 
+            found_locations=None, 
+            search_label=f"Scanning for: {image_list_str}",
+            duration=0.5
+        )
         
         results = {}
         found_locations = []
@@ -375,9 +464,14 @@ class ImageScanner:
                 results[image_name] = location
                 found_locations.append(location)
         
-        # Draw all found locations
+        # Show all found locations
         if found_locations:
-            draw_found_locations(found_locations, color="", enabled=True, auto_hide_seconds=5.0)
+            _show_image_search_debug_visualization(
+                search_region,
+                found_locations=found_locations,
+                search_label=f"Found {len(found_locations)} images",
+                duration=3.0
+            )
         
         return results
     
@@ -501,11 +595,17 @@ class ImageScanner:
         Returns:
             list: List of (x, y) coordinates for all found instances
         """
-        # Draw search region before starting scan to show "scanning in progress"
+        # Convert bounding_box to search_region format for visualization
         x, y, width, height = bounding_box
-        draw_search_region(x, y, x + width, y + height, 
-                          label=f"Scanning for all: {image_name}", 
-                          color="", enabled=True, auto_hide_seconds=0)
+        search_region = (x, y, x + width, y + height)
+        
+        # Show "scanning in progress" visualization
+        _show_image_search_debug_visualization(
+            search_region, 
+            found_locations=None, 
+            search_label=f"Scanning for all: {image_name}",
+            duration=0.5
+        )
         
         # Perform the actual scan
         if animated_image:
@@ -518,9 +618,14 @@ class ImageScanner:
             # Use the standard approach for non-animated images
             results = self._scan_for_all_images_standard(image_name, bounding_box, threshold, click_offset)
         
-        # Draw found locations if scan was successful
+        # Show found locations if scan was successful
         if results:
-            draw_found_locations(results, color="", enabled=True, auto_hide_seconds=5.0)
+            _show_image_search_debug_visualization(
+                search_region,
+                found_locations=results,
+                search_label=f"Found {len(results)} instances of {image_name}",
+                duration=3.0
+            )
         
         return results
     
@@ -663,11 +768,15 @@ def scan_image_with_bbox(automation_helper, image_name: str = "plus-collapsed.pn
         
         # Convert bbox from (left, top, right, bottom) to (x, y, width, height)
         bounding_box = (left, top, right - left, bottom - top)
+        search_region = (left, top, right, bottom)
         
-        # Draw search region before starting scan to show "scanning in progress"
-        draw_search_region(left, top, right, bottom, 
-                          label=f"Scanning with bbox: {image_name}", 
-                          color="", enabled=True, auto_hide_seconds=0)
+        # Show "scanning in progress" visualization
+        _show_image_search_debug_visualization(
+            search_region, 
+            found_locations=None, 
+            search_label=f"Scanning with bbox: {image_name}",
+            duration=0.5
+        )
         
         # Perform the scan using ImageScanner class directly to avoid duplicate visual feedback
         scanner = ImageScanner(images_folder)
@@ -683,9 +792,14 @@ def scan_image_with_bbox(automation_helper, image_name: str = "plus-collapsed.pn
                 'relative': (rel_x, rel_y)
             })
         
-        # Draw found locations if scan was successful
+        # Show found locations if scan was successful
         if locations:
-            draw_found_locations(locations, color="", enabled=True, auto_hide_seconds=5.0)
+            _show_image_search_debug_visualization(
+                search_region,
+                found_locations=locations,
+                search_label=f"Found {len(locations)} instances",
+                duration=3.0
+            )
         
         return {
             'success': True,
