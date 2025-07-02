@@ -10,6 +10,7 @@ import threading
 import time
 from typing import Optional, Callable
 from pathlib import Path
+from .file_utils import get_app_data_path
 
 
 class SequencePlayer:
@@ -23,14 +24,19 @@ class SequencePlayer:
             sequences_dir: Path to sequences directory. If None, uses default 'sequences' folder.
         """
         if sequences_dir is None:
-            # Default to sequences folder in project root
-            project_root = Path(__file__).parent.parent
-            self.sequences_dir = project_root / "sequences"
+            # Use proper path handling for .exe compatibility
+            sequences_path = get_app_data_path("sequences")
+            self.sequences_dir = Path(sequences_path)
         else:
             self.sequences_dir = Path(sequences_dir)
         
+        # Create sequences directory if it doesn't exist
         if not self.sequences_dir.exists():
-            raise FileNotFoundError(f"Sequences directory not found: {self.sequences_dir}")
+            try:
+                self.sequences_dir.mkdir(parents=True, exist_ok=True)
+                print(f"📁 Created sequences directory: {self.sequences_dir}")
+            except Exception as e:
+                raise FileNotFoundError(f"Sequences directory not found and could not be created: {self.sequences_dir}. Error: {e}")
     
     def list_sequences(self) -> list:
         """

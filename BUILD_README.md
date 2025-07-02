@@ -118,3 +118,10 @@ project/
 ---
 
 **Need Help?** Check the main project documentation or create an issue. 
+
+Nelvin Note:
+
+
+Build all: python build_exe.py
+Build only Main: pyinstaller build_exe.spec --clean
+Build only BTT: pyinstaller build_btt.spec --clean
